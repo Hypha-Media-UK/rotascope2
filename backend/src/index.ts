@@ -28,6 +28,9 @@ async function testConnection() {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Middleware
+app.use(express.json());
+
 // Basic middleware
 app.use(cors());
 app.use(express.json());
@@ -41,12 +44,72 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Departments endpoints
 app.get('/api/departments', async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [departments] = await connection.execute('SELECT * FROM departments WHERE is_active = 1 ORDER BY name');
     await connection.end();
     res.json(departments);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/departments', async (req, res) => {
+  try {
+    const { name, is_24_7, porters_required_day, porters_required_night } = req.body;
+
+    if (!name || porters_required_day < 1 || porters_required_night < 1) {
+      return res.status(400).json({ error: 'Invalid department data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      'INSERT INTO departments (name, code, is_24_7, porters_required_day, porters_required_night, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+      [name, name.toUpperCase().replace(/\s+/g, ''), is_24_7 ? 1 : 0, porters_required_day, porters_required_night]
+    );
+    await connection.end();
+
+    return res.status(201).json({ id: (result as any).insertId, message: 'Department created successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/departments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, is_24_7, porters_required_day, porters_required_night } = req.body;
+
+    if (!name || porters_required_day < 1 || porters_required_night < 1) {
+      return res.status(400).json({ error: 'Invalid department data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'UPDATE departments SET name = ?, is_24_7 = ?, porters_required_day = ?, porters_required_night = ?, updated_at = NOW() WHERE id = ?',
+      [name, is_24_7 ? 1 : 0, porters_required_day, porters_required_night, id]
+    );
+    await connection.end();
+
+    return res.json({ message: 'Department updated successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/departments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE departments SET is_active = 0, updated_at = NOW() WHERE id = ?', [id]);
+    await connection.end();
+
+    res.json({ message: 'Department deleted successfully' });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Database error' });
