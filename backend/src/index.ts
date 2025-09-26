@@ -65,6 +65,54 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
+app.get('/api/porters', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [porters] = await connection.execute('SELECT * FROM porters WHERE is_active = 1 ORDER BY name');
+    await connection.end();
+    res.json(porters);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/api/shifts', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [shifts] = await connection.execute('SELECT * FROM shifts WHERE is_active = 1 ORDER BY name');
+    await connection.end();
+    res.json(shifts);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/api/assignments', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [assignments] = await connection.execute(`
+      SELECT
+        pa.*,
+        p.name as porter_name,
+        d.name as department_name,
+        s.name as service_name
+      FROM porter_assignments pa
+      LEFT JOIN porters p ON pa.porter_id = p.id
+      LEFT JOIN departments d ON pa.department_id = d.id
+      LEFT JOIN services s ON pa.service_id = s.id
+      WHERE pa.is_active = 1
+      ORDER BY pa.start_date DESC
+    `);
+    await connection.end();
+    res.json(assignments);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Start server
 async function startServer() {
   try {
