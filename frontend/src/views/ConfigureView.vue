@@ -2,8 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import DepartmentManager from '@/components/DepartmentManager.vue'
-import PorterManager from '@/components/PorterManager.vue'
-import ShiftManager from '@/components/ShiftManager.vue'
 
 // Props
 interface Props {
@@ -82,13 +80,39 @@ onMounted(() => {
       <div v-if="currentTab === 'departments'" class="tab-panel">
         <DepartmentManager />
       </div>
-      
+
       <div v-if="currentTab === 'porters'" class="tab-panel">
-        <PorterManager />
+        <div class="placeholder-content">
+          <h2>Porter Management</h2>
+          <p>Porter management functionality will be implemented in Phase 4: Business Logic Implementation.</p>
+          <div class="placeholder-features">
+            <h3>Planned Features:</h3>
+            <ul>
+              <li>Add/Edit/Delete porters</li>
+              <li>Manage contracted hours</li>
+              <li>Set porter types (PORTER, SUPERVISOR, SENIOR_PORTER)</li>
+              <li>Configure custom schedules</li>
+              <li>Track porter assignments</li>
+            </ul>
+          </div>
+        </div>
       </div>
-      
+
       <div v-if="currentTab === 'shifts'" class="tab-panel">
-        <ShiftManager />
+        <div class="placeholder-content">
+          <h2>Shift Management</h2>
+          <p>Shift management functionality will be implemented in Phase 4: Business Logic Implementation.</p>
+          <div class="placeholder-features">
+            <h3>Planned Features:</h3>
+            <ul>
+              <li>Create shift patterns</li>
+              <li>Configure shift cycles</li>
+              <li>Set ground zero dates</li>
+              <li>Manage shift exceptions</li>
+              <li>Calculate shift rotations</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -181,6 +205,47 @@ onMounted(() => {
 
 .tab-panel {
   animation: fadeIn 0.2s ease-in-out;
+  padding: var(--space-6);
+}
+
+.placeholder-content {
+  text-align: center;
+  padding: var(--space-8);
+  background-color: var(--color-neutral-50);
+  border-radius: var(--border-radius-lg);
+  border: 2px dashed var(--color-neutral-300);
+}
+
+.placeholder-content h2 {
+  color: var(--color-neutral-700);
+  margin-bottom: var(--space-4);
+}
+
+.placeholder-content p {
+  color: var(--color-neutral-600);
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-lg);
+}
+
+.placeholder-features {
+  text-align: left;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.placeholder-features h3 {
+  color: var(--color-neutral-700);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-md);
+}
+
+.placeholder-features ul {
+  color: var(--color-neutral-600);
+  padding-left: var(--space-5);
+}
+
+.placeholder-features li {
+  margin-bottom: var(--space-2);
 }
 
 @keyframes fadeIn {
