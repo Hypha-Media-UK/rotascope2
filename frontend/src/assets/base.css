@@ -1,0 +1,66 @@
+/* CSS Reset and Base Styles */
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* Remove default button styles */
+  button {
+    border: none;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* Remove default input styles */
+  input,
+  textarea,
+  select {
+    font: inherit;
+    border: none;
+    background: none;
+  }
+
+  /* Remove default list styles */
+  ul,
+  ol {
+    list-style: none;
+  }
+
+  /* Remove default link styles */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Remove default table styles */
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  /* Remove default fieldset styles */
+  fieldset {
+    border: none;
+  }
+
+  /* Remove default legend styles */
+  legend {
+    padding: 0;
+  }
+}
