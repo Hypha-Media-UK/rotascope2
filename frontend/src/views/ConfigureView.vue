@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import DepartmentManager from '@/components/DepartmentManager.vue'
+import PorterManager from '@/components/PorterManager.vue'
+import ShiftManager from '@/components/ShiftManager.vue'
 
 // Props
 interface Props {
@@ -82,37 +84,11 @@ onMounted(() => {
       </div>
 
       <div v-if="currentTab === 'porters'" class="tab-panel">
-        <div class="placeholder-content">
-          <h2>Porter Management</h2>
-          <p>Porter management functionality will be implemented in Phase 4: Business Logic Implementation.</p>
-          <div class="placeholder-features">
-            <h3>Planned Features:</h3>
-            <ul>
-              <li>Add/Edit/Delete porters</li>
-              <li>Manage contracted hours</li>
-              <li>Set porter types (PORTER, SUPERVISOR, SENIOR_PORTER)</li>
-              <li>Configure custom schedules</li>
-              <li>Track porter assignments</li>
-            </ul>
-          </div>
-        </div>
+        <PorterManager />
       </div>
 
       <div v-if="currentTab === 'shifts'" class="tab-panel">
-        <div class="placeholder-content">
-          <h2>Shift Management</h2>
-          <p>Shift management functionality will be implemented in Phase 4: Business Logic Implementation.</p>
-          <div class="placeholder-features">
-            <h3>Planned Features:</h3>
-            <ul>
-              <li>Create shift patterns</li>
-              <li>Configure shift cycles</li>
-              <li>Set ground zero dates</li>
-              <li>Manage shift exceptions</li>
-              <li>Calculate shift rotations</li>
-            </ul>
-          </div>
-        </div>
+        <ShiftManager />
       </div>
     </div>
   </div>

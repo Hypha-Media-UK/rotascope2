@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { departmentApi } from '@/services/api'
-import type { DepartmentWithHours, DepartmentFormData } from '@/types'
+import { departmentApi, serviceApi } from '@/services/api'
+import type { DepartmentWithHours, DepartmentFormData, Service } from '@/types'
 import { DAY_NAMES } from '@/types'
 import DepartmentModal from './DepartmentModal.vue'
 
 // State
 const departments = ref<DepartmentWithHours[]>([])
+const services = ref<Service[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const showModal = ref(false)
@@ -16,14 +17,19 @@ const editingDepartment = ref<DepartmentWithHours | null>(null)
 const isEditing = computed(() => editingDepartment.value !== null)
 
 // Methods
-async function loadDepartments() {
+async function loadData() {
   try {
     loading.value = true
     error.value = null
-    departments.value = await departmentApi.getAll()
+    const [departmentsData, servicesData] = await Promise.all([
+      departmentApi.getAll(),
+      serviceApi.getAll()
+    ])
+    departments.value = departmentsData
+    services.value = servicesData
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load departments'
-    console.error('Error loading departments:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load data'
+    console.error('Error loading data:', err)
   } finally {
     loading.value = false
   }
@@ -90,7 +96,7 @@ function formatOperatingHours(department: DepartmentWithHours): string {
 
 // Lifecycle
 onMounted(() => {
-  loadDepartments()
+  loadData()
 })
 </script>
 
@@ -99,9 +105,9 @@ onMounted(() => {
     <!-- Header -->
     <div class="manager-header">
       <div class="header-content">
-        <h2 class="manager-title">Departments</h2>
+        <h2 class="manager-title">Departments & Services</h2>
         <p class="manager-description">
-          Manage hospital departments and their operational hours
+          Manage hospital departments and services with their operational hours
         </p>
       </div>
 
@@ -176,6 +182,51 @@ onMounted(() => {
             </div>
 
             <div v-if="!department.is_24_7" class="operating-hours">
+              <h4 class="hours-title">Operating Hours</h4>
+              <div class="hours-info">
+                <span class="hours-note">Standard operating hours apply (not 24/7)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Services Section -->
+    <div class="services-section">
+      <div class="section-header">
+        <h3 class="section-title">Services</h3>
+        <p class="section-description">Hospital services and their operational details</p>
+      </div>
+
+      <div class="services-grid">
+        <div v-for="service in services" :key="service.id" class="service-card">
+          <div class="service-header">
+            <div class="service-info">
+              <h4 class="service-name">{{ service.name }}</h4>
+              <span class="service-code">{{ service.code }}</span>
+            </div>
+            <div class="service-status">
+              <span :class="['status-badge', service.is_active ? 'status-active' : 'status-inactive']">
+                {{ service.is_active ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="service-details">
+            <div class="porter-requirements">
+              <h4 class="requirements-title">Porter Requirements</h4>
+              <div class="requirements-grid">
+                <span class="requirement-item">
+                  <strong>Day:</strong> {{ service.porters_required_day }}
+                </span>
+                <span class="requirement-item">
+                  <strong>Night:</strong> {{ service.porters_required_night }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="!service.is_24_7" class="operating-hours">
               <h4 class="hours-title">Operating Hours</h4>
               <div class="hours-info">
                 <span class="hours-note">Standard operating hours apply (not 24/7)</span>
@@ -394,5 +445,83 @@ onMounted(() => {
     align-self: stretch;
     justify-content: center;
   }
+}
+
+/* Services Section */
+.services-section {
+  margin-top: var(--space-12);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.section-header {
+  margin-bottom: var(--space-6);
+}
+
+.section-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.section-description {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.services-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.service-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  transition: all 0.2s ease;
+}
+
+.service-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.service-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  gap: var(--space-4);
+}
+
+.service-info {
+  flex: 1;
+}
+
+.service-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.service-code {
+  display: inline-block;
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 </style>
