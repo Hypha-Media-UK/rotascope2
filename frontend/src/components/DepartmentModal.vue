@@ -22,7 +22,6 @@ const error = ref<string | null>(null)
 // Form data
 const formData = ref<DepartmentFormData>({
   name: '',
-  department_type: 'DEPARTMENT',
   is_24_7: false,
   porters_required: 1,
   hours: []
@@ -45,7 +44,6 @@ function initializeForm() {
   if (props.department) {
     formData.value = {
       name: props.department.name,
-      department_type: props.department.department_type,
       is_24_7: props.department.is_24_7,
       porters_required: props.department.porters_required,
       hours: props.department.hours.length > 0
@@ -60,7 +58,6 @@ function initializeForm() {
   } else {
     formData.value = {
       name: '',
-      department_type: 'DEPARTMENT',
       is_24_7: false,
       porters_required: 1,
       hours: [...defaultHours]
@@ -169,31 +166,6 @@ watch(() => props.department, initializeForm, { immediate: true })
             placeholder="e.g., Emergency Department"
             required
           />
-        </div>
-
-        <!-- Department Type -->
-        <div class="form-group">
-          <label class="form-label">Type</label>
-          <div class="radio-group">
-            <label class="radio-option">
-              <input
-                v-model="formData.department_type"
-                type="radio"
-                value="DEPARTMENT"
-                name="department_type"
-              />
-              <span class="radio-label">Department</span>
-            </label>
-            <label class="radio-option">
-              <input
-                v-model="formData.department_type"
-                type="radio"
-                value="SERVICE"
-                name="department_type"
-              />
-              <span class="radio-label">Service</span>
-            </label>
-          </div>
         </div>
 
         <!-- Operation Type -->
