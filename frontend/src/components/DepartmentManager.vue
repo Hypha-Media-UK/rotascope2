@@ -51,7 +51,7 @@ async function handleSave(formData: DepartmentFormData) {
     } else {
       await departmentApi.create(formData)
     }
-    
+
     await loadDepartments()
     closeModal()
   } catch (err) {
@@ -78,11 +78,11 @@ function formatOperatingHours(department: DepartmentWithHours): string {
   if (department.is_24_7) {
     return '24/7 Operation'
   }
-  
+
   if (department.hours.length === 0) {
     return 'No operating hours set'
   }
-  
+
   return department.hours
     .map(h => `${DAY_NAMES[h.day_of_week]}: ${h.opens_at.slice(0, 5)} - ${h.closes_at.slice(0, 5)}`)
     .join(', ')
@@ -104,7 +104,7 @@ onMounted(() => {
           Manage hospital departments and their operational hours
         </p>
       </div>
-      
+
       <button @click="openCreateModal" class="btn btn-primary">
         Add Department
       </button>
@@ -166,25 +166,19 @@ onMounted(() => {
                   {{ department.is_24_7 ? '24/7 Operation' : 'Scheduled Hours' }}
                 </span>
               </div>
-              
+
               <div class="info-item">
                 <span class="info-label">Porters Required:</span>
-                <span class="info-value">{{ department.porters_required }}</span>
+                <span class="info-value">
+                  Day: {{ department.porters_required_day }}, Night: {{ department.porters_required_night }}
+                </span>
               </div>
             </div>
 
-            <div v-if="!department.is_24_7 && department.hours.length > 0" class="operating-hours">
+            <div v-if="!department.is_24_7" class="operating-hours">
               <h4 class="hours-title">Operating Hours</h4>
-              <div class="hours-grid">
-                <div
-                  v-for="hours in department.hours"
-                  :key="hours.id"
-                  class="hours-item"
-                >
-                  <span class="day">{{ DAY_NAMES[hours.day_of_week] }}</span>
-                  <span class="time">{{ hours.opens_at.slice(0, 5) }} - {{ hours.closes_at.slice(0, 5) }}</span>
-                  <span class="porters">{{ hours.porters_required }} porter{{ hours.porters_required !== 1 ? 's' : '' }}</span>
-                </div>
+              <div class="hours-info">
+                <span class="hours-note">Standard operating hours apply (not 24/7)</span>
               </div>
             </div>
           </div>
@@ -389,13 +383,13 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
   }
-  
+
   .card-actions {
     align-self: stretch;
     justify-content: center;

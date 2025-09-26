@@ -2,8 +2,11 @@
 export interface Department {
   id: number;
   name: string;
+  code: string;
   is_24_7: boolean;
-  porters_required: number;
+  porters_required_day: number;
+  porters_required_night: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -11,8 +14,11 @@ export interface Department {
 export interface Service {
   id: number;
   name: string;
+  code: string;
   is_24_7: boolean;
-  porters_required: number;
+  porters_required_day: number;
+  porters_required_night: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }

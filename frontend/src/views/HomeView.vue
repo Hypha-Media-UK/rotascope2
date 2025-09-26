@@ -144,25 +144,17 @@ onMounted(() => {
                   {{ department.is_24_7 ? '24/7' : 'Scheduled' }}
                 </span>
                 <span class="porter-count">
-                  {{ department.porters_required }} porter{{ department.porters_required !== 1 ? 's' : '' }} required
+                  Day: {{ department.porters_required_day }}, Night: {{ department.porters_required_night }} porters
                 </span>
               </div>
             </div>
 
             <div class="department-body">
               <!-- Department Hours (if not 24/7) -->
-              <div v-if="!department.is_24_7 && department.hours.length > 0" class="department-hours">
+              <div v-if="!department.is_24_7" class="department-hours">
                 <h4 class="hours-title">Operating Hours</h4>
-                <div class="hours-list">
-                  <div
-                    v-for="hours in department.hours"
-                    :key="hours.id"
-                    class="hours-item"
-                  >
-                    <span class="day-name">{{ ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][hours.day_of_week] }}</span>
-                    <span class="time-range">{{ hours.opens_at.slice(0, 5) }} - {{ hours.closes_at.slice(0, 5) }}</span>
-                    <span class="porter-requirement">{{ hours.porters_required }} porter{{ hours.porters_required !== 1 ? 's' : '' }}</span>
-                  </div>
+                <div class="hours-info">
+                  <span class="hours-note">Standard operating hours apply</span>
                 </div>
               </div>
 
@@ -205,25 +197,17 @@ onMounted(() => {
                   {{ service.is_24_7 ? '24/7' : 'Scheduled' }}
                 </span>
                 <span class="porter-count">
-                  {{ service.porters_required }} porter{{ service.porters_required !== 1 ? 's' : '' }} required
+                  Day: {{ service.porters_required_day }}, Night: {{ service.porters_required_night }} porters
                 </span>
               </div>
             </div>
 
             <div class="department-body">
               <!-- Service Hours (if not 24/7) -->
-              <div v-if="!service.is_24_7 && service.hours.length > 0" class="department-hours">
+              <div v-if="!service.is_24_7" class="department-hours">
                 <h4 class="hours-title">Operating Hours</h4>
-                <div class="hours-list">
-                  <div
-                    v-for="hours in service.hours"
-                    :key="hours.id"
-                    class="hours-item"
-                  >
-                    <span class="day-name">{{ ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][hours.day_of_week] }}</span>
-                    <span class="time-range">{{ hours.opens_at.slice(0, 5) }} - {{ hours.closes_at.slice(0, 5) }}</span>
-                    <span class="porter-requirement">{{ hours.porters_required }} porter{{ hours.porters_required !== 1 ? 's' : '' }}</span>
-                  </div>
+                <div class="hours-info">
+                  <span class="hours-note">Standard operating hours apply</span>
                 </div>
               </div>
 
