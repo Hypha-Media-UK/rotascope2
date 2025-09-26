@@ -23,7 +23,8 @@ const error = ref<string | null>(null)
 const formData = ref<DepartmentFormData>({
   name: '',
   is_24_7: false,
-  porters_required: 1,
+  porters_required_day: 1,
+  porters_required_night: 1,
   hours: []
 })
 
@@ -45,22 +46,17 @@ function initializeForm() {
     formData.value = {
       name: props.department.name,
       is_24_7: props.department.is_24_7,
-      porters_required: props.department.porters_required,
-      hours: props.department.hours.length > 0
-        ? props.department.hours.map(h => ({
-            day_of_week: h.day_of_week,
-            opens_at: h.opens_at.slice(0, 5), // Remove seconds
-            closes_at: h.closes_at.slice(0, 5), // Remove seconds
-            porters_required: h.porters_required
-          }))
-        : [...defaultHours]
+      porters_required_day: props.department.porters_required_day,
+      porters_required_night: props.department.porters_required_night,
+      hours: [] // Hours functionality will be implemented in Phase 4
     }
   } else {
     formData.value = {
       name: '',
       is_24_7: false,
-      porters_required: 1,
-      hours: [...defaultHours]
+      porters_required_day: 1,
+      porters_required_night: 1,
+      hours: [] // Hours functionality will be implemented in Phase 4
     }
   }
 }
@@ -96,8 +92,12 @@ async function handleSubmit() {
       throw new Error('Department name is required')
     }
 
-    if (formData.value.porters_required < 1) {
-      throw new Error('At least 1 porter is required')
+    if (formData.value.porters_required_day < 1) {
+      throw new Error('At least 1 day porter is required')
+    }
+
+    if (formData.value.porters_required_night < 1) {
+      throw new Error('At least 1 night porter is required')
     }
 
     if (!formData.value.is_24_7 && formData.value.hours.length === 0) {
@@ -193,16 +193,29 @@ watch(() => props.department, initializeForm, { immediate: true })
           </div>
         </div>
 
-        <!-- Default Porters Required (for 24/7) -->
-        <div v-if="formData.is_24_7" class="form-group">
-          <label class="form-label">Porters Required</label>
-          <input
-            v-model.number="formData.porters_required"
-            type="number"
-            class="form-input"
-            min="1"
-            required
-          />
+        <!-- Porter Requirements -->
+        <div class="porter-requirements">
+          <div class="form-group">
+            <label class="form-label">Day Porters Required (08:00-20:00)</label>
+            <input
+              v-model.number="formData.porters_required_day"
+              type="number"
+              class="form-input"
+              min="1"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Night Porters Required (20:00-08:00)</label>
+            <input
+              v-model.number="formData.porters_required_night"
+              type="number"
+              class="form-input"
+              min="1"
+              required
+            />
+          </div>
         </div>
 
         <!-- Operating Hours (for scheduled departments) -->
@@ -400,5 +413,17 @@ watch(() => props.department, initializeForm, { immediate: true })
 .form-select,
 .form-input {
   font-size: var(--font-size-sm);
+}
+
+.porter-requirements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@container (max-width: 600px) {
+  .porter-requirements {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

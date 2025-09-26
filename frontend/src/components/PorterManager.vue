@@ -22,6 +22,23 @@ async function loadPorters() {
   }
 }
 
+function addPorter() {
+  // TODO: Implement porter creation in Phase 4
+  alert('Add new porter functionality will be implemented in Phase 4: Business Logic Implementation.')
+}
+
+function editPorter(porter: Porter) {
+  // TODO: Implement porter editing in Phase 4
+  alert(`Edit porter: ${porter.first_name} ${porter.last_name}\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)
+}
+
+function deletePorter(porter: Porter) {
+  // TODO: Implement porter deletion in Phase 4
+  if (confirm(`Are you sure you want to delete porter ${porter.first_name} ${porter.last_name}?\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
+    alert('Porter deletion will be implemented in Phase 4.')
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadPorters()
@@ -38,7 +55,7 @@ onMounted(() => {
           Manage porter details, contracts, and assignments
         </p>
       </div>
-      <button class="btn btn-primary" disabled>
+      <button class="btn btn-primary" @click="addPorter">
         Add Porter
       </button>
     </div>
@@ -92,8 +109,8 @@ onMounted(() => {
         </div>
 
         <div class="porter-actions">
-          <button class="btn btn-secondary btn-sm" disabled>Edit</button>
-          <button class="btn btn-danger btn-sm" disabled>Delete</button>
+          <button class="btn btn-secondary btn-sm" @click="editPorter(porter)">Edit</button>
+          <button class="btn btn-danger btn-sm" @click="deletePorter(porter)">Delete</button>
         </div>
       </div>
     </div>
@@ -260,7 +277,7 @@ onMounted(() => {
   .porters-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .manager-header {
     flex-direction: column;
     align-items: flex-start;

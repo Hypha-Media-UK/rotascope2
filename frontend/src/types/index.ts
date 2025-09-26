@@ -146,7 +146,8 @@ export interface PorterWithDetails extends Porter {
 export interface DepartmentFormData {
   name: string;
   is_24_7: boolean;
-  porters_required: number;
+  porters_required_day: number;
+  porters_required_night: number;
   hours: Array<{
     day_of_week: number;
     opens_at: string;

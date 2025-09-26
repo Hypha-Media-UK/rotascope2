@@ -30,6 +30,23 @@ function formatTime(time: string): string {
   })
 }
 
+function addShift() {
+  // TODO: Implement shift creation in Phase 4
+  alert('Add new shift functionality will be implemented in Phase 4: Business Logic Implementation.')
+}
+
+function editShift(shift: Shift) {
+  // TODO: Implement shift editing in Phase 4
+  alert(`Edit shift: ${shift.name}\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)
+}
+
+function deleteShift(shift: Shift) {
+  // TODO: Implement shift deletion in Phase 4
+  if (confirm(`Are you sure you want to delete shift ${shift.name}?\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
+    alert('Shift deletion will be implemented in Phase 4.')
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadShifts()
@@ -46,7 +63,7 @@ onMounted(() => {
           Manage shift patterns, cycles, and schedules
         </p>
       </div>
-      <button class="btn btn-primary" disabled>
+      <button class="btn btn-primary" @click="addShift">
         Add Shift
       </button>
     </div>
@@ -109,8 +126,8 @@ onMounted(() => {
         </div>
 
         <div class="shift-actions">
-          <button class="btn btn-secondary btn-sm" disabled>Edit</button>
-          <button class="btn btn-danger btn-sm" disabled>Delete</button>
+          <button class="btn btn-secondary btn-sm" @click="editShift(shift)">Edit</button>
+          <button class="btn btn-danger btn-sm" @click="deleteShift(shift)">Delete</button>
         </div>
       </div>
     </div>
@@ -316,7 +333,7 @@ onMounted(() => {
   .shifts-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .manager-header {
     flex-direction: column;
     align-items: flex-start;
