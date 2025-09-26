@@ -1,71 +1,90 @@
+// Porter Tracking System - Main Application Entry Point
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import dotenv from 'dotenv';
-import { connectDatabase } from './config/database';
-import { errorHandler } from './middleware/errorHandler';
+import mysql from 'mysql2/promise';
 
-// Import routes
-import departmentRoutes from './routes/departments';
-import serviceRoutes from './routes/services';
-import porterRoutes from './routes/porters';
-import shiftRoutes from './routes/shifts';
-import assignmentRoutes from './routes/assignments';
+// Simple database test
+const dbConfig = {
+  host: 'localhost',
+  port: 3307,
+  user: 'rotascope_user',
+  password: 'rotascope_password',
+  database: 'rotascope'
+};
 
-// Load environment variables
-dotenv.config();
+async function testConnection() {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.ping();
+    await connection.end();
+    console.log('✅ Database connection successful');
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+    return false;
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
-}));
-app.use(morgan('combined'));
+// Basic middleware
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// Simple test routes
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
-    service: 'rotascope-backend'
+    version: '2.0.0'
   });
 });
 
-// API routes
-app.use('/api/departments', departmentRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/porters', porterRoutes);
-app.use('/api/shifts', shiftRoutes);
-app.use('/api/assignments', assignmentRoutes);
+app.get('/api/departments', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [departments] = await connection.execute('SELECT * FROM departments WHERE is_active = 1 ORDER BY name');
+    await connection.end();
+    res.json(departments);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
 
-// Error handling middleware
-app.use(errorHandler);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+app.get('/api/services', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [services] = await connection.execute('SELECT * FROM services WHERE is_active = 1 ORDER BY name');
+    await connection.end();
+    res.json(services);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // Start server
 async function startServer() {
   try {
-    // Connect to database
-    await connectDatabase();
-    console.log('✅ Database connected successfully');
+    // Test database connection
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+      console.error('Failed to connect to database, exiting...');
+      process.exit(1);
+    }
 
+    // Start HTTP server
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`🚀 Porter Tracking System API v2.0 started`);
+      console.log(`📡 Server running on port ${PORT}`);
+      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+      console.log(`📊 Departments: http://localhost:${PORT}/api/departments`);
+      console.log(`🔧 Services: http://localhost:${PORT}/api/services`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
