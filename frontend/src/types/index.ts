@@ -158,14 +158,10 @@ export interface DepartmentFormData {
 
 export interface ServiceFormData {
   name: string;
+  code?: string;
   is_24_7: boolean;
-  porters_required: number;
-  hours: Array<{
-    day_of_week: number;
-    opens_at: string;
-    closes_at: string;
-    porters_required: number;
-  }>;
+  porters_required_day: number;
+  porters_required_night: number;
 }
 
 export interface PorterFormData {

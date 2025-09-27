@@ -128,6 +128,70 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
+app.post('/api/services', async (req, res) => {
+  try {
+    const { name, code, is_24_7, porters_required_day, porters_required_night } = req.body;
+
+    if (!name || porters_required_day < 1 || porters_required_night < 1) {
+      return res.status(400).json({ error: 'Invalid service data' });
+    }
+
+    const serviceCode = code || name.toUpperCase().replace(/\s+/g, '').substring(0, 10);
+
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      'INSERT INTO services (name, code, is_24_7, porters_required_day, porters_required_night, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+      [name, serviceCode, is_24_7 ? 1 : 0, porters_required_day, porters_required_night]
+    );
+    await connection.end();
+
+    return res.status(201).json({ id: (result as any).insertId, message: 'Service created successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, is_24_7, porters_required_day, porters_required_night } = req.body;
+
+    if (!name || porters_required_day < 1 || porters_required_night < 1) {
+      return res.status(400).json({ error: 'Invalid service data' });
+    }
+
+    const serviceCode = code || name.toUpperCase().replace(/\s+/g, '').substring(0, 10);
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'UPDATE services SET name = ?, code = ?, is_24_7 = ?, porters_required_day = ?, porters_required_night = ?, updated_at = NOW() WHERE id = ?',
+      [name, serviceCode, is_24_7 ? 1 : 0, porters_required_day, porters_required_night, id]
+    );
+    await connection.end();
+
+    return res.json({ message: 'Service updated successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE services SET is_active = 0, updated_at = NOW() WHERE id = ?', [id]);
+    await connection.end();
+
+    return res.json({ message: 'Service deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
 app.get('/api/porters', async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { departmentApi, serviceApi } from '@/services/api'
-import type { DepartmentWithHours, DepartmentFormData, Service } from '@/types'
+import type { DepartmentWithHours, DepartmentFormData, Service, ServiceFormData } from '@/types'
 import { DAY_NAMES } from '@/types'
 import DepartmentModal from './DepartmentModal.vue'
+import ServiceModal from './ServiceModal.vue'
 
 // State
 const departments = ref<DepartmentWithHours[]>([])
@@ -12,9 +13,12 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const showModal = ref(false)
 const editingDepartment = ref<DepartmentWithHours | null>(null)
+const showServiceModal = ref(false)
+const editingService = ref<Service | null>(null)
 
 // Computed
 const isEditing = computed(() => editingDepartment.value !== null)
+const isEditingService = computed(() => editingService.value !== null)
 
 // Methods
 async function loadData() {
@@ -80,15 +84,49 @@ async function handleDelete(department: DepartmentWithHours) {
   }
 }
 
-function editService(service: Service) {
-  // TODO: Implement service editing in Phase 4
-  alert(`Edit service: ${service.name}\n\nService editing functionality will be implemented in Phase 4: Business Logic Implementation.`)
+// Service modal methods
+function openCreateServiceModal() {
+  editingService.value = null
+  showServiceModal.value = true
 }
 
-function deleteService(service: Service) {
-  // TODO: Implement service deletion in Phase 4
-  if (confirm(`Are you sure you want to delete service "${service.name}"?\n\nService deletion functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
-    alert('Service deletion will be implemented in Phase 4.')
+function openEditServiceModal(service: Service) {
+  editingService.value = service
+  showServiceModal.value = true
+}
+
+function closeServiceModal() {
+  showServiceModal.value = false
+  editingService.value = null
+}
+
+async function handleServiceSave(formData: any) {
+  try {
+    if (isEditingService.value && editingService.value) {
+      await serviceApi.update(editingService.value.id, formData)
+    } else {
+      await serviceApi.create(formData)
+    }
+
+    await loadData()
+    closeServiceModal()
+  } catch (err) {
+    console.error('Error saving service:', err)
+    throw err // Let the modal handle the error display
+  }
+}
+
+async function handleDeleteService(service: Service) {
+  if (!confirm(`Are you sure you want to delete "${service.name}"?`)) {
+    return
+  }
+
+  try {
+    await serviceApi.delete(service.id)
+    await loadData()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete service'
+    console.error('Error deleting service:', err)
   }
 }
 
@@ -209,31 +247,56 @@ onMounted(() => {
       <div class="section-header">
         <h3 class="section-title">Services</h3>
         <p class="section-description">Hospital services and their operational details</p>
+        <button @click="openCreateServiceModal" class="btn btn-primary">
+          Add Service
+        </button>
       </div>
 
-      <div class="services-grid">
-        <div v-for="service in services" :key="service.id" class="service-card">
-          <div class="service-header">
-            <div class="service-info">
-              <h4 class="service-name">{{ service.name }}</h4>
-              <span class="service-code">{{ service.code }}</span>
-            </div>
-            <div class="service-status">
-              <span :class="['status-badge', service.is_active ? 'status-active' : 'status-inactive']">
-                {{ service.is_active ? 'Active' : 'Inactive' }}
-              </span>
+      <div v-if="services.length === 0" class="empty-state">
+        <h3>No Services</h3>
+        <p>Create your first service to get started.</p>
+        <button @click="openCreateServiceModal" class="btn btn-primary">
+          Add Service
+        </button>
+      </div>
+
+      <div v-else class="departments-grid">
+        <div
+          v-for="service in services"
+          :key="service.id"
+          class="department-card"
+        >
+          <div class="card-header">
+            <h3 class="department-name">{{ service.name }}</h3>
+            <div class="card-actions">
+              <button
+                @click="openEditServiceModal(service)"
+                class="btn btn-sm btn-secondary"
+              >
+                Edit
+              </button>
+              <button
+                @click="handleDeleteService(service)"
+                class="btn btn-sm btn-secondary"
+              >
+                Delete
+              </button>
             </div>
           </div>
 
-          <div class="service-details">
-            <div class="porter-requirements">
-              <h4 class="requirements-title">Porter Requirements</h4>
-              <div class="requirements-grid">
-                <span class="requirement-item">
-                  <strong>Day:</strong> {{ service.porters_required_day }}
+          <div class="card-body">
+            <div class="department-info">
+              <div class="info-item">
+                <span class="info-label">Type:</span>
+                <span class="info-value">
+                  {{ service.is_24_7 ? '24/7 Operation' : 'Scheduled Hours' }}
                 </span>
-                <span class="requirement-item">
-                  <strong>Night:</strong> {{ service.porters_required_night }}
+              </div>
+
+              <div class="info-item">
+                <span class="info-label">Porters Required:</span>
+                <span class="info-value">
+                  Day: {{ service.porters_required_day }}, Night: {{ service.porters_required_night }}
                 </span>
               </div>
             </div>
@@ -245,11 +308,6 @@ onMounted(() => {
               </div>
             </div>
           </div>
-
-          <div class="service-actions">
-            <button @click="editService(service)" class="btn btn-secondary btn-sm">Edit</button>
-            <button @click="deleteService(service)" class="btn btn-danger btn-sm">Delete</button>
-          </div>
         </div>
       </div>
     </div>
@@ -260,6 +318,14 @@ onMounted(() => {
       :department="editingDepartment"
       @save="handleSave"
       @close="closeModal"
+    />
+
+    <!-- Service Modal -->
+    <ServiceModal
+      v-if="showServiceModal"
+      :service="editingService"
+      @save="handleServiceSave"
+      @close="closeServiceModal"
     />
   </div>
 </template>
