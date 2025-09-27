@@ -49,27 +49,32 @@ export interface Shift {
   id: number;
   name: string;
   shift_type: 'DAY' | 'NIGHT';
-  shift_ident: 'A' | 'B' | 'C' | 'D';
+  shift_identifier: 'A' | 'B' | 'C' | 'D';
   starts_at: string; // TIME format "HH:MM:SS"
   ends_at: string; // TIME format "HH:MM:SS"
   days_on: number;
   days_off: number;
   shift_offset: number;
-  ground_zero: string; // Date string
+  ground_zero_date: string; // Date string
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
 export interface Porter {
   id: number;
+  employee_id?: string;
   name: string;
-  porter_type: 'PORTER' | 'SUPERVISOR';
-  contracted_hours_type: 'SHIFT' | 'CUSTOM' | 'RELIEF';
-  shift_id: number | null;
-  shift_offset: number;
-  regular_department_id: number | null;
+  email?: string;
+  phone?: string;
+  porter_type: 'PORTER' | 'SENIOR_PORTER' | 'SUPERVISOR';
+  contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
+  weekly_contracted_hours: number;
+  shift_id?: number;
+  regular_department_id?: number;
   is_floor_staff: boolean;
-  weekly_hours: number;
+  hire_date?: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -166,30 +171,25 @@ export interface ServiceFormData {
 
 export interface PorterFormData {
   name: string;
-  porter_type: 'PORTER' | 'SUPERVISOR';
-  contracted_hours_type: 'SHIFT' | 'CUSTOM' | 'RELIEF';
-  shift_id?: number;
-  shift_offset?: number;
-  regular_department_id?: number;
-  is_floor_staff: boolean;
-  weekly_hours?: number;
-  custom_hours?: Array<{
-    day_of_week: number;
-    starts_at: string;
-    ends_at: string;
-  }>;
+  email?: string;
+  porter_type: 'PORTER' | 'SENIOR_PORTER' | 'SUPERVISOR';
+  contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
+  weekly_contracted_hours?: number;
+  hire_date?: string;
+  is_active: boolean;
 }
 
 export interface ShiftFormData {
   name: string;
   shift_type: 'DAY' | 'NIGHT';
-  shift_ident: 'A' | 'B' | 'C' | 'D';
+  shift_identifier: 'A' | 'B' | 'C' | 'D';
   starts_at: string;
   ends_at: string;
   days_on: number;
   days_off: number;
-  shift_offset: number;
-  ground_zero: string; // Date string
+  shift_offset?: number;
+  ground_zero_date: string;
+  is_active: boolean;
 }
 
 export interface AssignmentFormData {

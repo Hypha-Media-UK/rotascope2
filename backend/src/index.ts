@@ -204,6 +204,66 @@ app.get('/api/porters', async (req, res) => {
   }
 });
 
+app.post('/api/porters', async (req, res) => {
+  try {
+    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active } = req.body;
+
+    if (!name || !porter_type || !contracted_hours_type) {
+      return res.status(400).json({ error: 'Missing required porter data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      'INSERT INTO porters (name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, hire_date || null, is_active ? 1 : 0]
+    );
+    await connection.end();
+
+    return res.status(201).json({ id: (result as any).insertId, message: 'Porter created successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/porters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active } = req.body;
+
+    if (!name || !porter_type || !contracted_hours_type) {
+      return res.status(400).json({ error: 'Missing required porter data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'UPDATE porters SET name = ?, email = ?, porter_type = ?, contracted_hours_type = ?, weekly_contracted_hours = ?, hire_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, hire_date || null, is_active ? 1 : 0, id]
+    );
+    await connection.end();
+
+    return res.json({ message: 'Porter updated successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/porters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE porters SET is_active = 0, updated_at = NOW() WHERE id = ?', [id]);
+    await connection.end();
+
+    return res.json({ message: 'Porter deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
 app.get('/api/shifts', async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
@@ -213,6 +273,66 @@ app.get('/api/shifts', async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/shifts', async (req, res) => {
+  try {
+    const { name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
+
+    if (!name || !shift_type || !shift_identifier || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
+      return res.status(400).json({ error: 'Missing required shift data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      'INSERT INTO shifts (name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0]
+    );
+    await connection.end();
+
+    return res.status(201).json({ id: (result as any).insertId, message: 'Shift created successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/shifts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
+
+    if (!name || !shift_type || !shift_identifier || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
+      return res.status(400).json({ error: 'Missing required shift data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'UPDATE shifts SET name = ?, shift_type = ?, shift_identifier = ?, starts_at = ?, ends_at = ?, days_on = ?, days_off = ?, shift_offset = ?, ground_zero_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0, id]
+    );
+    await connection.end();
+
+    return res.json({ message: 'Shift updated successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/shifts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE shifts SET is_active = 0, updated_at = NOW() WHERE id = ?', [id]);
+    await connection.end();
+
+    return res.json({ message: 'Shift deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
   }
 });
 

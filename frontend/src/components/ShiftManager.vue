@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { shiftApi } from '@/services/api'
-import type { Shift } from '@/types'
+import type { Shift, ShiftFormData } from '@/types'
+import CrudCard from './CrudCard.vue'
+import ShiftModal from './ShiftModal.vue'
 
 // State
 const shifts = ref<Shift[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const showModal = ref(false)
+const editingShift = ref<Shift | null>(null)
+
+// Computed
+const isEditing = computed(() => editingShift.value !== null)
 
 // Methods
-async function loadShifts() {
+async function loadData() {
   try {
     loading.value = true
     error.value = null
@@ -30,26 +37,66 @@ function formatTime(time: string): string {
   })
 }
 
-function addShift() {
-  // TODO: Implement shift creation in Phase 4
-  alert('Add new shift functionality will be implemented in Phase 4: Business Logic Implementation.')
+// Modal methods
+function openCreateModal() {
+  editingShift.value = null
+  showModal.value = true
 }
 
-function editShift(shift: Shift) {
-  // TODO: Implement shift editing in Phase 4
-  alert(`Edit shift: ${shift.name}\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)
+function openEditModal(shift: Shift) {
+  editingShift.value = shift
+  showModal.value = true
 }
 
-function deleteShift(shift: Shift) {
-  // TODO: Implement shift deletion in Phase 4
-  if (confirm(`Are you sure you want to delete shift ${shift.name}?\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
-    alert('Shift deletion will be implemented in Phase 4.')
+function closeModal() {
+  showModal.value = false
+  editingShift.value = null
+}
+
+async function handleSave(formData: ShiftFormData) {
+  try {
+    if (isEditing.value && editingShift.value) {
+      await shiftApi.update(editingShift.value.id, formData)
+    } else {
+      await shiftApi.create(formData)
+    }
+
+    await loadData()
+    closeModal()
+  } catch (err) {
+    console.error('Error saving shift:', err)
+    throw err // Let the modal handle the error display
   }
+}
+
+async function handleDelete(shift: Shift) {
+  if (!confirm(`Are you sure you want to delete "${shift.name}"?`)) {
+    return
+  }
+
+  try {
+    await shiftApi.delete(shift.id)
+    await loadData()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete shift'
+    console.error('Error deleting shift:', err)
+  }
+}
+
+function getShiftInfoItems(shift: Shift) {
+  return [
+    { label: 'Type', value: `${shift.shift_type} (${shift.shift_identifier})` },
+    { label: 'Times', value: `${formatTime(shift.starts_at)} - ${formatTime(shift.ends_at)}` },
+    { label: 'Pattern', value: `${shift.days_on} on, ${shift.days_off} off` },
+    { label: 'Offset', value: `${shift.shift_offset} days` },
+    { label: 'Ground Zero', value: new Date(shift.ground_zero_date).toLocaleDateString() },
+    { label: 'Status', value: shift.is_active ? 'Active' : 'Inactive' }
+  ]
 }
 
 // Lifecycle
 onMounted(() => {
-  loadShifts()
+  loadData()
 })
 </script>
 
@@ -63,7 +110,7 @@ onMounted(() => {
           Manage shift patterns, cycles, and schedules
         </p>
       </div>
-      <button class="btn btn-primary" @click="addShift">
+      <button class="btn btn-primary" @click="openCreateModal">
         Add Shift
       </button>
     </div>
@@ -75,67 +122,43 @@ onMounted(() => {
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-state">
-      <p class="error-message">{{ error }}</p>
-      <button @click="loadShifts" class="btn btn-secondary">
+    <div v-else-if="error" class="alert alert-error">
+      <p>{{ error }}</p>
+      <button @click="loadData" class="btn btn-sm btn-secondary">
         Try Again
       </button>
     </div>
 
-    <!-- Shifts Grid -->
-    <div v-else class="shifts-grid">
-      <div v-for="shift in shifts" :key="shift.id" class="shift-card">
-        <div class="shift-header">
-          <div class="shift-info">
-            <h4 class="shift-name">{{ shift.name }}</h4>
-            <span class="shift-code">{{ shift.code }}</span>
-          </div>
-          <div class="shift-status">
-            <span :class="['status-badge', shift.is_active ? 'status-active' : 'status-inactive']">
-              {{ shift.is_active ? 'Active' : 'Inactive' }}
-            </span>
-          </div>
-        </div>
-
-        <div class="shift-details">
-          <div class="time-info">
-            <div class="time-row">
-              <span class="time-label">Start Time:</span>
-              <span class="time-value">{{ formatTime(shift.start_time) }}</span>
-            </div>
-            <div class="time-row">
-              <span class="time-label">End Time:</span>
-              <span class="time-value">{{ formatTime(shift.end_time) }}</span>
-            </div>
-          </div>
-
-          <div class="cycle-info">
-            <div class="detail-row">
-              <span class="detail-label">Cycle Length:</span>
-              <span class="detail-value">{{ shift.cycle_length_weeks }} weeks</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Ground Zero:</span>
-              <span class="detail-value">{{ new Date(shift.ground_zero_date).toLocaleDateString() }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Offset:</span>
-              <span class="detail-value">{{ shift.cycle_offset_weeks }} weeks</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="shift-actions">
-          <button class="btn btn-secondary btn-sm" @click="editShift(shift)">Edit</button>
-          <button class="btn btn-danger btn-sm" @click="deleteShift(shift)">Delete</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Empty State -->
-    <div v-if="!loading && !error && shifts.length === 0" class="empty-state">
-      <p>No shifts found</p>
+    <div v-else-if="shifts.length === 0" class="empty-state">
+      <h3>No Shifts</h3>
+      <p>Create your first shift pattern to get started.</p>
+      <button @click="openCreateModal" class="btn btn-primary">
+        Add Shift
+      </button>
     </div>
+
+    <!-- Shifts Grid -->
+    <div v-else class="departments-grid">
+      <CrudCard
+        v-for="shift in shifts"
+        :key="shift.id"
+        :title="shift.name"
+        :info-items="getShiftInfoItems(shift)"
+        @edit="openEditModal(shift)"
+        @delete="handleDelete(shift)"
+      />
+    </div>
+
+    <!-- Shift Modal -->
+    <ShiftModal
+      v-if="showModal"
+      :shift="editingShift"
+      @save="handleSave"
+      @close="closeModal"
+    />
+
+
   </div>
 </template>
 
@@ -169,7 +192,6 @@ onMounted(() => {
 }
 
 .loading-state,
-.error-state,
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -194,146 +216,35 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-.error-message {
-  color: var(--color-danger);
-  margin-bottom: var(--space-4);
-}
-
-.shifts-grid {
+.departments-grid {
   display: grid;
-  gap: var(--space-6);
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-}
-
-.shift-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  transition: all 0.2s ease;
-}
-
-.shift-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.shift-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-  gap: var(--space-4);
-}
-
-.shift-info {
-  flex: 1;
-}
-
-.shift-name {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.shift-code {
-  display: inline-block;
-  background: var(--color-background-secondary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-}
-
-.shift-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-}
-
-.time-info {
-  padding: var(--space-3);
-  background: var(--color-background-secondary);
-  border-radius: var(--radius-md);
-}
-
-.time-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.time-row:not(:last-child) {
-  margin-bottom: var(--space-2);
-}
-
-.time-label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-}
-
-.time-value {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-}
-
-.cycle-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-}
-
-.detail-value {
-  color: var(--color-text-primary);
-}
-
-.shift-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.status-active {
-  background: var(--color-success-light);
-  color: var(--color-success-dark);
-}
-
-.status-inactive {
-  background: var(--color-warning-light);
-  color: var(--color-warning-dark);
+  gap: var(--space-6);
 }
 
 @container (max-width: 768px) {
-  .shifts-grid {
+  .departments-grid {
     grid-template-columns: 1fr;
   }
+}
 
+.alert {
+  padding: var(--space-4);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--space-6);
+}
+
+.alert-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Removed old shift-specific styles - now using CrudCard component */
+
+
+
+@container (max-width: 768px) {
   .manager-header {
     flex-direction: column;
     align-items: flex-start;

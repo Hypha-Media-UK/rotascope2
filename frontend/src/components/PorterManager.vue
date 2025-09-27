@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { porterApi } from '@/services/api'
-import type { Porter } from '@/types'
+import type { Porter, PorterFormData } from '@/types'
+import CrudCard from './CrudCard.vue'
+import PorterModal from './PorterModal.vue'
 
 // State
 const porters = ref<Porter[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const showModal = ref(false)
+const editingPorter = ref<Porter | null>(null)
+
+// Computed
+const isEditing = computed(() => editingPorter.value !== null)
 
 // Methods
-async function loadPorters() {
+async function loadData() {
   try {
     loading.value = true
     error.value = null
@@ -22,26 +29,66 @@ async function loadPorters() {
   }
 }
 
-function addPorter() {
-  // TODO: Implement porter creation in Phase 4
-  alert('Add new porter functionality will be implemented in Phase 4: Business Logic Implementation.')
+// Modal methods
+function openCreateModal() {
+  editingPorter.value = null
+  showModal.value = true
 }
 
-function editPorter(porter: Porter) {
-  // TODO: Implement porter editing in Phase 4
-  alert(`Edit porter: ${porter.first_name} ${porter.last_name}\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)
+function openEditModal(porter: Porter) {
+  editingPorter.value = porter
+  showModal.value = true
 }
 
-function deletePorter(porter: Porter) {
-  // TODO: Implement porter deletion in Phase 4
-  if (confirm(`Are you sure you want to delete porter ${porter.first_name} ${porter.last_name}?\n\nThis functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
-    alert('Porter deletion will be implemented in Phase 4.')
+function closeModal() {
+  showModal.value = false
+  editingPorter.value = null
+}
+
+async function handleSave(formData: PorterFormData) {
+  try {
+    if (isEditing.value && editingPorter.value) {
+      await porterApi.update(editingPorter.value.id, formData)
+    } else {
+      await porterApi.create(formData)
+    }
+
+    await loadData()
+    closeModal()
+  } catch (err) {
+    console.error('Error saving porter:', err)
+    throw err // Let the modal handle the error display
   }
+}
+
+async function handleDelete(porter: Porter) {
+  if (!confirm(`Are you sure you want to delete "${porter.first_name} ${porter.last_name}"?`)) {
+    return
+  }
+
+  try {
+    await porterApi.delete(porter.id)
+    await loadData()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete porter'
+    console.error('Error deleting porter:', err)
+  }
+}
+
+function getPorterInfoItems(porter: Porter) {
+  return [
+    { label: 'Email', value: porter.email || 'Not provided' },
+    { label: 'Type', value: porter.porter_type.replace('_', ' ') },
+    { label: 'Contract', value: porter.contracted_hours_type.replace('_', ' ') },
+    { label: 'Hours/Week', value: `${porter.weekly_contracted_hours}` },
+    { label: 'Hire Date', value: porter.hire_date ? new Date(porter.hire_date).toLocaleDateString() : 'Not set' },
+    { label: 'Status', value: porter.is_active ? 'Active' : 'Inactive' }
+  ]
 }
 
 // Lifecycle
 onMounted(() => {
-  loadPorters()
+  loadData()
 })
 </script>
 
@@ -55,7 +102,7 @@ onMounted(() => {
           Manage porter details, contracts, and assignments
         </p>
       </div>
-      <button class="btn btn-primary" @click="addPorter">
+      <button class="btn btn-primary" @click="openCreateModal">
         Add Porter
       </button>
     </div>
@@ -67,58 +114,41 @@ onMounted(() => {
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-state">
-      <p class="error-message">{{ error }}</p>
-      <button @click="loadPorters" class="btn btn-secondary">
+    <div v-else-if="error" class="alert alert-error">
+      <p>{{ error }}</p>
+      <button @click="loadData" class="btn btn-sm btn-secondary">
         Try Again
       </button>
     </div>
 
-    <!-- Porters Grid -->
-    <div v-else class="porters-grid">
-      <div v-for="porter in porters" :key="porter.id" class="porter-card">
-        <div class="porter-header">
-          <div class="porter-info">
-            <h4 class="porter-name">{{ porter.first_name }} {{ porter.last_name }}</h4>
-            <span class="porter-email">{{ porter.email }}</span>
-          </div>
-          <div class="porter-status">
-            <span :class="['status-badge', porter.is_active ? 'status-active' : 'status-inactive']">
-              {{ porter.is_active ? 'Active' : 'Inactive' }}
-            </span>
-          </div>
-        </div>
-
-        <div class="porter-details">
-          <div class="detail-row">
-            <span class="detail-label">Type:</span>
-            <span class="detail-value">{{ porter.porter_type }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Contract:</span>
-            <span class="detail-value">{{ porter.contract_type }}</span>
-          </div>
-          <div v-if="porter.custom_hours_per_week" class="detail-row">
-            <span class="detail-label">Hours/Week:</span>
-            <span class="detail-value">{{ porter.custom_hours_per_week }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Started:</span>
-            <span class="detail-value">{{ new Date(porter.start_date).toLocaleDateString() }}</span>
-          </div>
-        </div>
-
-        <div class="porter-actions">
-          <button class="btn btn-secondary btn-sm" @click="editPorter(porter)">Edit</button>
-          <button class="btn btn-danger btn-sm" @click="deletePorter(porter)">Delete</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Empty State -->
-    <div v-if="!loading && !error && porters.length === 0" class="empty-state">
-      <p>No porters found</p>
+    <div v-else-if="porters.length === 0" class="empty-state">
+      <h3>No Porters</h3>
+      <p>Create your first porter to get started.</p>
+      <button @click="openCreateModal" class="btn btn-primary">
+        Add Porter
+      </button>
     </div>
+
+    <!-- Porters Grid -->
+    <div v-else class="departments-grid">
+      <CrudCard
+        v-for="porter in porters"
+        :key="porter.id"
+        :title="porter.name"
+        :info-items="getPorterInfoItems(porter)"
+        @edit="openEditModal(porter)"
+        @delete="handleDelete(porter)"
+      />
+    </div>
+
+    <!-- Porter Modal -->
+    <PorterModal
+      v-if="showModal"
+      :porter="editingPorter"
+      @save="handleSave"
+      @close="closeModal"
+    />
   </div>
 </template>
 
@@ -152,7 +182,6 @@ onMounted(() => {
 }
 
 .loading-state,
-.error-state,
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -160,6 +189,30 @@ onMounted(() => {
   justify-content: center;
   padding: var(--space-12);
   text-align: center;
+}
+
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--space-6);
+}
+
+@container (max-width: 768px) {
+  .departments-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alert {
+  padding: var(--space-4);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--space-6);
+}
+
+.alert-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
 .loading-spinner {
@@ -177,107 +230,11 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-.error-message {
-  color: var(--color-danger);
-  margin-bottom: var(--space-4);
-}
+/* Removed old porter-specific styles - now using CrudCard component */
 
-.porters-grid {
-  display: grid;
-  gap: var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-}
 
-.porter-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  transition: all 0.2s ease;
-}
-
-.porter-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.porter-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-  gap: var(--space-4);
-}
-
-.porter-info {
-  flex: 1;
-}
-
-.porter-name {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.porter-email {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.porter-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-}
-
-.detail-value {
-  color: var(--color-text-primary);
-}
-
-.porter-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.status-active {
-  background: var(--color-success-light);
-  color: var(--color-success-dark);
-}
-
-.status-inactive {
-  background: var(--color-warning-light);
-  color: var(--color-warning-dark);
-}
 
 @container (max-width: 768px) {
-  .porters-grid {
-    grid-template-columns: 1fr;
-  }
-
   .manager-header {
     flex-direction: column;
     align-items: flex-start;
