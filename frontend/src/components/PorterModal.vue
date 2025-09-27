@@ -81,15 +81,7 @@
           />
         </div>
 
-        <div class="form-group">
-          <label for="hire-date">Hire Date</label>
-          <input
-            id="hire-date"
-            v-model="formData.hire_date"
-            type="date"
-            class="form-input"
-          />
-        </div>
+
 
         <div class="form-group">
           <label class="checkbox-label">
@@ -140,7 +132,6 @@ const formData = ref<PorterFormData>({
   porter_type: 'PORTER',
   contracted_hours_type: 'SHIFT',
   weekly_contracted_hours: 37.5,
-  hire_date: new Date().toISOString().split('T')[0],
   is_active: true
 })
 
@@ -154,7 +145,6 @@ function initializeForm() {
       porter_type: props.porter.porter_type,
       contracted_hours_type: props.porter.contracted_hours_type,
       weekly_contracted_hours: props.porter.weekly_contracted_hours,
-      hire_date: props.porter.hire_date ? props.porter.hire_date.split('T')[0] : '',
       is_active: Boolean(props.porter.is_active)
     }
   } else {
@@ -164,7 +154,6 @@ function initializeForm() {
       porter_type: 'PORTER',
       contracted_hours_type: 'SHIFT',
       weekly_contracted_hours: 37.5,
-      hire_date: new Date().toISOString().split('T')[0],
       is_active: true
     }
   }

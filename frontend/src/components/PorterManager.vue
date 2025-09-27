@@ -77,12 +77,8 @@ async function handleDelete(porter: Porter) {
 
 function getPorterInfoItems(porter: Porter) {
   return [
-    { label: 'Email', value: porter.email || 'Not provided' },
-    { label: 'Type', value: porter.porter_type.replace('_', ' ') },
     { label: 'Contract', value: porter.contracted_hours_type.replace('_', ' ') },
-    { label: 'Hours/Week', value: `${porter.weekly_contracted_hours}` },
-    { label: 'Hire Date', value: porter.hire_date ? new Date(porter.hire_date).toLocaleDateString() : 'Not set' },
-    { label: 'Status', value: porter.is_active ? 'Active' : 'Inactive' }
+    { label: 'Hours/Week', value: `${porter.weekly_contracted_hours}` }
   ]
 }
 

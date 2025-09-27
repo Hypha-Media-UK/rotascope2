@@ -73,7 +73,6 @@ export interface Porter {
   shift_id?: number;
   regular_department_id?: number;
   is_floor_staff: boolean;
-  hire_date?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -175,7 +174,6 @@ export interface PorterFormData {
   porter_type: 'PORTER' | 'SENIOR_PORTER' | 'SUPERVISOR';
   contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
   weekly_contracted_hours?: number;
-  hire_date?: string;
   is_active: boolean;
 }
 

@@ -165,7 +165,6 @@ CREATE TABLE porters (
     shift_id INT UNSIGNED NULL, -- For shift-based porters
     regular_department_id INT UNSIGNED NULL, -- Primary department assignment
     is_floor_staff BOOLEAN NOT NULL DEFAULT FALSE,
-    hire_date DATE NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

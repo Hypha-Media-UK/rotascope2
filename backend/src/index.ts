@@ -206,7 +206,7 @@ app.get('/api/porters', async (req, res) => {
 
 app.post('/api/porters', async (req, res) => {
   try {
-    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active } = req.body;
+    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, is_active } = req.body;
 
     if (!name || !porter_type || !contracted_hours_type) {
       return res.status(400).json({ error: 'Missing required porter data' });
@@ -214,8 +214,8 @@ app.post('/api/porters', async (req, res) => {
 
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'INSERT INTO porters (name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, hire_date || null, is_active ? 1 : 0]
+      'INSERT INTO porters (name, email, porter_type, contracted_hours_type, weekly_contracted_hours, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, is_active ? 1 : 0]
     );
     await connection.end();
 
@@ -229,7 +229,7 @@ app.post('/api/porters', async (req, res) => {
 app.put('/api/porters/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, hire_date, is_active } = req.body;
+    const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, is_active } = req.body;
 
     if (!name || !porter_type || !contracted_hours_type) {
       return res.status(400).json({ error: 'Missing required porter data' });
@@ -237,8 +237,8 @@ app.put('/api/porters/:id', async (req, res) => {
 
     const connection = await mysql.createConnection(dbConfig);
     await connection.execute(
-      'UPDATE porters SET name = ?, email = ?, porter_type = ?, contracted_hours_type = ?, weekly_contracted_hours = ?, hire_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
-      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, hire_date || null, is_active ? 1 : 0, id]
+      'UPDATE porters SET name = ?, email = ?, porter_type = ?, contracted_hours_type = ?, weekly_contracted_hours = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50, is_active ? 1 : 0, id]
     );
     await connection.end();
 
