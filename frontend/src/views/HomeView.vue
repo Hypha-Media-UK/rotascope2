@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { departmentApi, serviceApi } from '@/services/api'
-import type { Department, Service, WeekTab, ScheduleDay, ActiveShift } from '@/types'
+import type { Department, Service, WeekTab, ScheduleDay, ActiveShift, DailyPorterAvailability, PorterAvailability } from '@/types'
 import WeekNavigation from '@/components/WeekNavigation.vue'
 import ShiftCard from '@/components/ShiftCard.vue'
 
 // State
 const scheduleData = ref<ScheduleDay | null>(null)
+const availabilityData = ref<DailyPorterAvailability | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedWeek = ref<WeekTab | null>(null)
@@ -22,11 +23,14 @@ const currentDateString = computed(() => {
   })
 })
 
-const departmentsList = computed(() => scheduleData.value?.departments || [])
-const servicesList = computed(() => scheduleData.value?.services || [])
+const departmentsList = computed(() => availabilityData.value?.departments || scheduleData.value?.departments || [])
+const servicesList = computed(() => availabilityData.value?.services || scheduleData.value?.services || [])
 const activeShifts = computed(() => scheduleData.value?.active_shifts || [])
 
-// Extract all porter assignments from active shifts
+// Get all available porters for today
+const availablePorters = computed(() => availabilityData.value?.available_porters || [])
+
+// Extract all porter assignments from active shifts (for shift cards)
 const allPorterAssignments = computed(() => {
   const assignments: any[] = []
   activeShifts.value.forEach(shift => {
@@ -37,59 +41,41 @@ const allPorterAssignments = computed(() => {
   return assignments
 })
 
-// Group porters by department (regular assignments)
+// Group available porters by department
 const portersByDepartment = computed(() => {
-  const grouped: Record<number, any[]> = {}
-  allPorterAssignments.value.forEach(assignment => {
-    const porter = assignment.porter
-    if (porter.regular_department_id) {
-      if (!grouped[porter.regular_department_id]) {
-        grouped[porter.regular_department_id] = []
+  const grouped: Record<number, PorterAvailability[]> = {}
+
+  availablePorters.value.forEach(availability => {
+    if (availability.assignment_location.type === 'DEPARTMENT') {
+      const deptId = availability.assignment_location.id
+      if (!grouped[deptId]) {
+        grouped[deptId] = []
       }
-      grouped[porter.regular_department_id].push({
-        ...assignment,
-        assignment_type: 'Regular'
-      })
+      grouped[deptId].push(availability)
     }
   })
+
   return grouped
 })
 
-// Group porters by service (temporary assignments)
+// Group available porters by service
 const portersByService = computed(() => {
-  const grouped: Record<number, any[]> = {}
-  allPorterAssignments.value.forEach(assignment => {
-    const porter = assignment.porter
-    if (porter.temp_service_id) {
-      if (!grouped[porter.temp_service_id]) {
-        grouped[porter.temp_service_id] = []
+  const grouped: Record<number, PorterAvailability[]> = {}
+
+  availablePorters.value.forEach(availability => {
+    if (availability.assignment_location.type === 'SERVICE') {
+      const serviceId = availability.assignment_location.id
+      if (!grouped[serviceId]) {
+        grouped[serviceId] = []
       }
-      grouped[porter.temp_service_id].push({
-        ...assignment,
-        assignment_type: 'Temporary'
-      })
+      grouped[serviceId].push(availability)
     }
   })
+
   return grouped
 })
 
-// Group porters by department (temporary assignments)
-const tempPortersByDepartment = computed(() => {
-  const grouped: Record<number, any[]> = {}
-  allPorterAssignments.value.forEach(assignment => {
-    const porter = assignment.porter
-    if (porter.temp_department_id) {
-      if (!grouped[porter.temp_department_id]) {
-        grouped[porter.temp_department_id] = []
-      }
-      grouped[porter.temp_department_id].push({
-        ...assignment,
-        assignment_type: 'Temporary'
-      })
-    }
-  })
-  return grouped
-})
+
 
 // Week days for the selected week
 const weekDays = computed(() => {
@@ -112,17 +98,31 @@ async function loadScheduleData(date: Date) {
     error.value = null
 
     const dateString = date.toISOString().split('T')[0] // YYYY-MM-DD format
-    const response = await fetch(`/api/schedule/${dateString}`)
 
-    if (!response.ok) {
+    // Load both schedule data (for shift cards) and availability data (for porter assignments)
+    const [scheduleResponse, availabilityResponse] = await Promise.all([
+      fetch(`/api/schedule/${dateString}`),
+      fetch(`/api/availability/${dateString}`)
+    ])
+
+    if (!scheduleResponse.ok) {
       throw new Error('Failed to load schedule data')
     }
 
-    const data = await response.json()
-    scheduleData.value = data
+    if (!availabilityResponse.ok) {
+      throw new Error('Failed to load availability data')
+    }
+
+    const [scheduleData_temp, availabilityData_temp] = await Promise.all([
+      scheduleResponse.json(),
+      availabilityResponse.json()
+    ])
+
+    scheduleData.value = scheduleData_temp
+    availabilityData.value = availabilityData_temp
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load schedule data'
-    console.error('Error loading schedule data:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load data'
+    console.error('Error loading data:', err)
   } finally {
     loading.value = false
   }
@@ -236,27 +236,33 @@ onMounted(() => {
               <div class="assigned-porters">
                 <h4 class="porters-title">Assigned Porters</h4>
                 <div class="porters-list">
-                  <!-- Regular Assignments -->
+                  <!-- All Porter Assignments (Regular, Temporary, Custom Hours, etc.) -->
                   <div
-                    v-for="assignment in portersByDepartment[department.id] || []"
-                    :key="`regular-${assignment.porter.id}`"
+                    v-for="availability in portersByDepartment[department.id] || []"
+                    :key="`porter-${availability.porter.id}`"
                     class="porter-item"
                   >
-                    <span class="porter-name">{{ assignment.porter.name }}</span>
-                    <span class="assignment-type regular">{{ assignment.assignment_type }}</span>
+                    <span class="porter-name">{{ availability.porter.name }}</span>
+                    <span
+                      :class="['assignment-type', availability.assignment_location.assignment_type.toLowerCase()]"
+                    >
+                      {{ availability.assignment_location.assignment_type }}
+                    </span>
+                    <span
+                      v-if="availability.availability_type !== 'SHIFT'"
+                      class="availability-type"
+                    >
+                      ({{ availability.availability_type.replace('_', ' ') }})
+                    </span>
+                    <span
+                      v-if="availability.working_hours"
+                      class="working-hours"
+                    >
+                      {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
+                    </span>
                   </div>
 
-                  <!-- Temporary Assignments -->
-                  <div
-                    v-for="assignment in tempPortersByDepartment[department.id] || []"
-                    :key="`temp-${assignment.porter.id}`"
-                    class="porter-item"
-                  >
-                    <span class="porter-name">{{ assignment.porter.name }}</span>
-                    <span class="assignment-type temporary">{{ assignment.assignment_type }}</span>
-                  </div>
-
-                  <div v-if="(!portersByDepartment[department.id] || portersByDepartment[department.id].length === 0) && (!tempPortersByDepartment[department.id] || tempPortersByDepartment[department.id].length === 0)" class="no-porters">
+                  <div v-if="!portersByDepartment[department.id] || portersByDepartment[department.id].length === 0" class="no-porters">
                     No porters currently assigned
                   </div>
                 </div>
@@ -309,12 +315,28 @@ onMounted(() => {
                 <h4 class="porters-title">Assigned Porters</h4>
                 <div class="porters-list">
                   <div
-                    v-for="assignment in portersByService[service.id] || []"
-                    :key="`service-${assignment.porter.id}`"
+                    v-for="availability in portersByService[service.id] || []"
+                    :key="`service-${availability.porter.id}`"
                     class="porter-item"
                   >
-                    <span class="porter-name">{{ assignment.porter.name }}</span>
-                    <span class="assignment-type temporary">{{ assignment.assignment_type }}</span>
+                    <span class="porter-name">{{ availability.porter.name }}</span>
+                    <span
+                      :class="['assignment-type', availability.assignment_location.assignment_type.toLowerCase()]"
+                    >
+                      {{ availability.assignment_location.assignment_type }}
+                    </span>
+                    <span
+                      v-if="availability.availability_type !== 'SHIFT'"
+                      class="availability-type"
+                    >
+                      ({{ availability.availability_type.replace('_', ' ') }})
+                    </span>
+                    <span
+                      v-if="availability.working_hours"
+                      class="working-hours"
+                    >
+                      {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
+                    </span>
                   </div>
 
                   <div v-if="!portersByService[service.id] || portersByService[service.id].length === 0" class="no-porters">
@@ -678,5 +700,22 @@ onMounted(() => {
   .porter-requirement {
     text-align: center;
   }
+}
+
+.availability-type {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-600);
+  font-style: italic;
+  margin-left: var(--space-2);
+}
+
+.working-hours {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-700);
+  background-color: var(--color-neutral-100);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-2);
+  font-family: monospace;
 }
 </style>

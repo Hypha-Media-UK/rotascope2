@@ -34,6 +34,16 @@ export interface DepartmentHours {
   updated_at: string;
 }
 
+export interface PorterHours {
+  id: number;
+  porter_id: number;
+  day_of_week: number; // 0=Sunday, 1=Monday, ..., 6=Saturday
+  starts_at: string; // TIME format "HH:MM:SS"
+  ends_at: string; // TIME format "HH:MM:SS"
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ServiceHours {
   id: number;
   service_id: number;
@@ -73,6 +83,7 @@ export interface Porter {
   shift_id?: number;
   porter_offset?: number;
   regular_department_id?: number;
+  regular_service_id?: number;
   temp_department_id?: number;
   temp_service_id?: number;
   temp_assignment_start?: string;
@@ -182,11 +193,49 @@ export interface PorterFormData {
   shift_id?: number;
   porter_offset?: number;
   regular_department_id?: number;
+  regular_service_id?: number;
   temp_department_id?: number;
   temp_service_id?: number;
   temp_assignment_start?: string;
   temp_assignment_end?: string;
   is_active: boolean;
+  custom_hours?: PorterHoursFormData[];
+}
+
+export interface PorterHoursFormData {
+  day_of_week: number;
+  starts_at: string; // TIME format "HH:MM"
+  ends_at: string; // TIME format "HH:MM"
+}
+
+// Porter Availability System Types
+export interface PorterAvailability {
+  porter: Porter;
+  availability_type: 'SHIFT' | 'CUSTOM_HOURS' | 'REGULAR_ASSIGNMENT';
+  is_working_today: boolean;
+  working_hours?: {
+    start: string;
+    end: string;
+  };
+  assignment_location: {
+    type: 'DEPARTMENT' | 'SERVICE';
+    id: number;
+    name: string;
+    assignment_type: 'REGULAR' | 'TEMPORARY';
+  };
+  shift_info?: {
+    shift_id: number;
+    shift_name: string;
+    shift_type: string;
+  };
+}
+
+export interface DailyPorterAvailability {
+  date: string;
+  available_porters: PorterAvailability[];
+  departments: Department[];
+  services: Service[];
+  shifts: Shift[];
 }
 
 export interface ShiftFormData {

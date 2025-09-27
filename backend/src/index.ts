@@ -209,7 +209,7 @@ app.post('/api/porters', async (req, res) => {
   try {
     const {
       name, email, porter_type, contracted_hours_type, weekly_contracted_hours,
-      shift_id, porter_offset, regular_department_id,
+      shift_id, porter_offset, regular_department_id, regular_service_id,
       temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end,
       is_active
     } = req.body;
@@ -229,13 +229,13 @@ app.post('/api/porters', async (req, res) => {
     const [result] = await connection.execute(
       `INSERT INTO porters (
         name, email, porter_type, contracted_hours_type, weekly_contracted_hours,
-        shift_id, porter_offset, regular_department_id,
+        shift_id, porter_offset, regular_department_id, regular_service_id,
         temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end,
         is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
-        shift_id || null, porter_offset || 0, regular_department_id || null,
+        shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
         temp_department_id || null, temp_service_id || null,
         formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
         is_active ? 1 : 0
@@ -255,7 +255,7 @@ app.put('/api/porters/:id', async (req, res) => {
     const { id } = req.params;
     const {
       name, email, porter_type, contracted_hours_type, weekly_contracted_hours,
-      shift_id, porter_offset, regular_department_id,
+      shift_id, porter_offset, regular_department_id, regular_service_id,
       temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end,
       is_active
     } = req.body;
@@ -275,13 +275,13 @@ app.put('/api/porters/:id', async (req, res) => {
     await connection.execute(
       `UPDATE porters SET
         name = ?, email = ?, porter_type = ?, contracted_hours_type = ?, weekly_contracted_hours = ?,
-        shift_id = ?, porter_offset = ?, regular_department_id = ?,
+        shift_id = ?, porter_offset = ?, regular_department_id = ?, regular_service_id = ?,
         temp_department_id = ?, temp_service_id = ?, temp_assignment_start = ?, temp_assignment_end = ?,
         is_active = ?, updated_at = NOW()
       WHERE id = ?`,
       [
         name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
-        shift_id || null, porter_offset || 0, regular_department_id || null,
+        shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
         temp_department_id || null, temp_service_id || null,
         formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
         is_active ? 1 : 0, id
@@ -310,6 +310,242 @@ app.delete('/api/porters/:id', async (req, res) => {
     return res.status(500).json({ error: 'Database error' });
   }
 });
+
+// Get porter hours
+app.get('/api/porters/:id/hours', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT * FROM porter_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
+      [id]
+    );
+    await connection.end();
+    return res.json(rows);
+  } catch (error) {
+    console.error('Error fetching porter hours:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Update porter hours
+app.put('/api/porters/:id/hours', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hours } = req.body;
+
+    if (!Array.isArray(hours)) {
+      return res.status(400).json({ error: 'Hours must be an array' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+
+    // Start transaction
+    await connection.beginTransaction();
+
+    try {
+      // Delete existing hours for this porter
+      await connection.execute('DELETE FROM porter_hours WHERE porter_id = ?', [id]);
+
+      // Insert new hours
+      for (const hour of hours) {
+        await connection.execute(
+          'INSERT INTO porter_hours (porter_id, day_of_week, starts_at, ends_at) VALUES (?, ?, ?, ?)',
+          [id, hour.day_of_week, hour.starts_at + ':00', hour.ends_at + ':00']
+        );
+      }
+
+      await connection.commit();
+      await connection.end();
+
+      return res.json({ message: 'Porter hours updated successfully' });
+    } catch (error) {
+      await connection.rollback();
+      await connection.end();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error updating porter hours:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get comprehensive porter availability for a specific date
+app.get('/api/availability/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const targetDate = new Date(date);
+    const dayOfWeek = targetDate.getDay(); // 0=Sunday, 1=Monday, etc.
+
+    const connection = await mysql.createConnection(dbConfig);
+
+    // Get all active porters with their assignments
+    const [porters] = await connection.execute(`
+      SELECT
+        p.*,
+        rd.name as regular_department_name,
+        rs.name as regular_service_name,
+        td.name as temp_department_name,
+        ts.name as temp_service_name,
+        s.name as shift_name,
+        s.shift_type,
+        s.starts_at as shift_starts_at,
+        s.ends_at as shift_ends_at,
+        s.days_on,
+        s.days_off,
+        s.ground_zero_date
+      FROM porters p
+      LEFT JOIN departments rd ON p.regular_department_id = rd.id
+      LEFT JOIN services rs ON p.regular_service_id = rs.id
+      LEFT JOIN departments td ON p.temp_department_id = td.id
+      LEFT JOIN services ts ON p.temp_service_id = ts.id
+      LEFT JOIN shifts s ON p.shift_id = s.id
+      WHERE p.is_active = 1
+      ORDER BY p.name
+    `);
+
+    // Get custom hours for all porters for this day of week
+    const [customHours] = await connection.execute(`
+      SELECT porter_id, starts_at, ends_at
+      FROM porter_hours
+      WHERE day_of_week = ?
+    `, [dayOfWeek]);
+
+    // Get departments and services
+    const [departments] = await connection.execute('SELECT * FROM departments WHERE is_active = 1 ORDER BY name');
+    const [services] = await connection.execute('SELECT * FROM services WHERE is_active = 1 ORDER BY name');
+    const [shifts] = await connection.execute('SELECT * FROM shifts WHERE is_active = 1 ORDER BY name');
+
+    await connection.end();
+
+    // Create lookup for custom hours
+    const customHoursMap = new Map();
+    (customHours as any[]).forEach((hour: any) => {
+      customHoursMap.set(hour.porter_id, {
+        start: hour.starts_at,
+        end: hour.ends_at
+      });
+    });
+
+    const availablePorters: any[] = [];
+
+    (porters as any[]).forEach((porter: any) => {
+      const porterAvailability = calculatePorterAvailability(porter, targetDate, dayOfWeek, customHoursMap);
+      if (porterAvailability) {
+        availablePorters.push(porterAvailability);
+      }
+    });
+
+    return res.json({
+      date: date,
+      available_porters: availablePorters,
+      departments: departments,
+      services: services,
+      shifts: shifts
+    });
+
+  } catch (error) {
+    console.error('Error fetching porter availability:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Helper function to calculate porter availability
+function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: number, customHoursMap: Map<number, any>) {
+  const isInTempAssignmentPeriod = porter.temp_assignment_start && porter.temp_assignment_end &&
+    targetDate >= new Date(porter.temp_assignment_start) && targetDate <= new Date(porter.temp_assignment_end);
+
+  // Priority 1: Temporary Assignment (highest priority)
+  if (isInTempAssignmentPeriod) {
+    if (porter.temp_department_id) {
+      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.temp_department_id, porter.temp_department_name, 'TEMPORARY');
+    } else if (porter.temp_service_id) {
+      return createAvailabilityRecord(porter, 'SERVICE', porter.temp_service_id, porter.temp_service_name, 'TEMPORARY');
+    }
+  }
+
+  // Priority 2: Shift Assignment with location
+  if (porter.shift_id && isPorterWorkingShiftToday(porter, targetDate, dayOfWeek)) {
+    // Determine location for shift worker
+    if (porter.regular_department_id) {
+      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'SHIFT', porter);
+    } else if (porter.regular_service_id) {
+      return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'SHIFT', porter);
+    }
+  }
+
+  // Priority 3: Custom Hours with regular assignment
+  if (porter.contracted_hours_type === 'CUSTOM' && customHoursMap.has(porter.id)) {
+    const hours = customHoursMap.get(porter.id);
+    if (porter.regular_department_id) {
+      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'CUSTOM_HOURS', null, hours);
+    } else if (porter.regular_service_id) {
+      return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'CUSTOM_HOURS', null, hours);
+    }
+  }
+
+  // Priority 4: Regular Assignment (always available - for 24/7 departments/services)
+  if (porter.regular_department_id) {
+    return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'REGULAR_ASSIGNMENT');
+  } else if (porter.regular_service_id) {
+    return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'REGULAR_ASSIGNMENT');
+  }
+
+  return null; // Porter not available today
+}
+
+function createAvailabilityRecord(porter: any, locationType: string, locationId: number, locationName: string, assignmentType: string, availabilityType: string = 'REGULAR_ASSIGNMENT', shiftInfo: any = null, customHours: any = null) {
+  return {
+    porter: {
+      id: porter.id,
+      name: porter.name,
+      email: porter.email,
+      porter_type: porter.porter_type,
+      contracted_hours_type: porter.contracted_hours_type,
+      weekly_contracted_hours: porter.weekly_contracted_hours,
+      shift_id: porter.shift_id,
+      porter_offset: porter.porter_offset,
+      regular_department_id: porter.regular_department_id,
+      regular_service_id: porter.regular_service_id,
+      temp_department_id: porter.temp_department_id,
+      temp_service_id: porter.temp_service_id,
+      temp_assignment_start: porter.temp_assignment_start,
+      temp_assignment_end: porter.temp_assignment_end,
+      is_active: porter.is_active
+    },
+    availability_type: availabilityType,
+    is_working_today: true,
+    working_hours: customHours || (shiftInfo ? {
+      start: shiftInfo.shift_starts_at,
+      end: shiftInfo.shift_ends_at
+    } : undefined),
+    assignment_location: {
+      type: locationType,
+      id: locationId,
+      name: locationName,
+      assignment_type: assignmentType
+    },
+    shift_info: shiftInfo ? {
+      shift_id: shiftInfo.shift_id,
+      shift_name: shiftInfo.shift_name,
+      shift_type: shiftInfo.shift_type
+    } : undefined
+  };
+}
+
+function isPorterWorkingShiftToday(porter: any, targetDate: Date, dayOfWeek: number) {
+  if (!porter.shift_id || !porter.ground_zero_date) return false;
+
+  const groundZero = new Date(porter.ground_zero_date);
+  const porterOffset = porter.porter_offset || 0;
+  const adjustedGroundZero = new Date(groundZero.getTime() + (porterOffset * 24 * 60 * 60 * 1000));
+
+  const daysDiff = Math.floor((targetDate.getTime() - adjustedGroundZero.getTime()) / (24 * 60 * 60 * 1000));
+  const cycleLength = porter.days_on + porter.days_off;
+  const positionInCycle = ((daysDiff % cycleLength) + cycleLength) % cycleLength;
+
+  return positionInCycle < porter.days_on;
+}
 
 app.get('/api/shifts', async (req, res) => {
   try {
