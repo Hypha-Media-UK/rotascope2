@@ -58,7 +58,7 @@ async function handleSave(formData: DepartmentFormData) {
       await departmentApi.create(formData)
     }
 
-    await loadDepartments()
+    await loadData()
     closeModal()
   } catch (err) {
     console.error('Error saving department:', err)
@@ -73,10 +73,22 @@ async function handleDelete(department: DepartmentWithHours) {
 
   try {
     await departmentApi.delete(department.id)
-    await loadDepartments()
+    await loadData()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to delete department'
     console.error('Error deleting department:', err)
+  }
+}
+
+function editService(service: Service) {
+  // TODO: Implement service editing in Phase 4
+  alert(`Edit service: ${service.name}\n\nService editing functionality will be implemented in Phase 4: Business Logic Implementation.`)
+}
+
+function deleteService(service: Service) {
+  // TODO: Implement service deletion in Phase 4
+  if (confirm(`Are you sure you want to delete service "${service.name}"?\n\nService deletion functionality will be implemented in Phase 4: Business Logic Implementation.`)) {
+    alert('Service deletion will be implemented in Phase 4.')
   }
 }
 
@@ -125,7 +137,7 @@ onMounted(() => {
     <!-- Error State -->
     <div v-else-if="error" class="alert alert-error">
       <p>{{ error }}</p>
-      <button @click="loadDepartments" class="btn btn-sm btn-secondary">
+      <button @click="loadData" class="btn btn-sm btn-secondary">
         Try Again
       </button>
     </div>
@@ -232,6 +244,11 @@ onMounted(() => {
                 <span class="hours-note">Standard operating hours apply (not 24/7)</span>
               </div>
             </div>
+          </div>
+
+          <div class="service-actions">
+            <button @click="editService(service)" class="btn btn-secondary btn-sm">Edit</button>
+            <button @click="deleteService(service)" class="btn btn-danger btn-sm">Delete</button>
           </div>
         </div>
       </div>
@@ -523,5 +540,14 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+.service-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 </style>
