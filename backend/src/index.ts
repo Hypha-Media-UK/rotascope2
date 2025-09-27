@@ -218,6 +218,13 @@ app.post('/api/porters', async (req, res) => {
       return res.status(400).json({ error: 'Missing required porter data' });
     }
 
+    // Helper function to convert ISO datetime to MySQL date format
+    const formatDateForDB = (dateString: string | null): string | null => {
+      if (!dateString) return null;
+      // Convert ISO datetime to YYYY-MM-DD format for MySQL date fields
+      return dateString.split('T')[0];
+    };
+
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
       `INSERT INTO porters (
@@ -229,7 +236,8 @@ app.post('/api/porters', async (req, res) => {
       [
         name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
         shift_id || null, porter_offset || 0, regular_department_id || null,
-        temp_department_id || null, temp_service_id || null, temp_assignment_start || null, temp_assignment_end || null,
+        temp_department_id || null, temp_service_id || null,
+        formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
         is_active ? 1 : 0
       ]
     );
@@ -237,7 +245,7 @@ app.post('/api/porters', async (req, res) => {
 
     return res.status(201).json({ id: (result as any).insertId, message: 'Porter created successfully' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error creating porter:', error);
     return res.status(500).json({ error: 'Database error' });
   }
 });
@@ -256,6 +264,13 @@ app.put('/api/porters/:id', async (req, res) => {
       return res.status(400).json({ error: 'Missing required porter data' });
     }
 
+    // Helper function to convert ISO datetime to MySQL date format
+    const formatDateForDB = (dateString: string | null): string | null => {
+      if (!dateString) return null;
+      // Convert ISO datetime to YYYY-MM-DD format for MySQL date fields
+      return dateString.split('T')[0];
+    };
+
     const connection = await mysql.createConnection(dbConfig);
     await connection.execute(
       `UPDATE porters SET
@@ -267,7 +282,8 @@ app.put('/api/porters/:id', async (req, res) => {
       [
         name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
         shift_id || null, porter_offset || 0, regular_department_id || null,
-        temp_department_id || null, temp_service_id || null, temp_assignment_start || null, temp_assignment_end || null,
+        temp_department_id || null, temp_service_id || null,
+        formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
         is_active ? 1 : 0, id
       ]
     );
@@ -275,7 +291,7 @@ app.put('/api/porters/:id', async (req, res) => {
 
     return res.json({ message: 'Porter updated successfully' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error updating porter:', error);
     return res.status(500).json({ error: 'Database error' });
   }
 });

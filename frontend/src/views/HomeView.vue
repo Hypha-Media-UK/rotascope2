@@ -26,6 +26,71 @@ const departmentsList = computed(() => scheduleData.value?.departments || [])
 const servicesList = computed(() => scheduleData.value?.services || [])
 const activeShifts = computed(() => scheduleData.value?.active_shifts || [])
 
+// Extract all porter assignments from active shifts
+const allPorterAssignments = computed(() => {
+  const assignments: any[] = []
+  activeShifts.value.forEach(shift => {
+    shift.assigned_porters.forEach((assignment: any) => {
+      assignments.push(assignment)
+    })
+  })
+  return assignments
+})
+
+// Group porters by department (regular assignments)
+const portersByDepartment = computed(() => {
+  const grouped: Record<number, any[]> = {}
+  allPorterAssignments.value.forEach(assignment => {
+    const porter = assignment.porter
+    if (porter.regular_department_id) {
+      if (!grouped[porter.regular_department_id]) {
+        grouped[porter.regular_department_id] = []
+      }
+      grouped[porter.regular_department_id].push({
+        ...assignment,
+        assignment_type: 'Regular'
+      })
+    }
+  })
+  return grouped
+})
+
+// Group porters by service (temporary assignments)
+const portersByService = computed(() => {
+  const grouped: Record<number, any[]> = {}
+  allPorterAssignments.value.forEach(assignment => {
+    const porter = assignment.porter
+    if (porter.temp_service_id) {
+      if (!grouped[porter.temp_service_id]) {
+        grouped[porter.temp_service_id] = []
+      }
+      grouped[porter.temp_service_id].push({
+        ...assignment,
+        assignment_type: 'Temporary'
+      })
+    }
+  })
+  return grouped
+})
+
+// Group porters by department (temporary assignments)
+const tempPortersByDepartment = computed(() => {
+  const grouped: Record<number, any[]> = {}
+  allPorterAssignments.value.forEach(assignment => {
+    const porter = assignment.porter
+    if (porter.temp_department_id) {
+      if (!grouped[porter.temp_department_id]) {
+        grouped[porter.temp_department_id] = []
+      }
+      grouped[porter.temp_department_id].push({
+        ...assignment,
+        assignment_type: 'Temporary'
+      })
+    }
+  })
+  return grouped
+})
+
 // Week days for the selected week
 const weekDays = computed(() => {
   if (!selectedWeek.value) return []
@@ -171,8 +236,28 @@ onMounted(() => {
               <div class="assigned-porters">
                 <h4 class="porters-title">Assigned Porters</h4>
                 <div class="porters-list">
-                  <div class="no-porters">
-                    Porter assignments shown in shift cards below
+                  <!-- Regular Assignments -->
+                  <div
+                    v-for="assignment in portersByDepartment[department.id] || []"
+                    :key="`regular-${assignment.porter.id}`"
+                    class="porter-item"
+                  >
+                    <span class="porter-name">{{ assignment.porter.name }}</span>
+                    <span class="assignment-type regular">{{ assignment.assignment_type }}</span>
+                  </div>
+
+                  <!-- Temporary Assignments -->
+                  <div
+                    v-for="assignment in tempPortersByDepartment[department.id] || []"
+                    :key="`temp-${assignment.porter.id}`"
+                    class="porter-item"
+                  >
+                    <span class="porter-name">{{ assignment.porter.name }}</span>
+                    <span class="assignment-type temporary">{{ assignment.assignment_type }}</span>
+                  </div>
+
+                  <div v-if="(!portersByDepartment[department.id] || portersByDepartment[department.id].length === 0) && (!tempPortersByDepartment[department.id] || tempPortersByDepartment[department.id].length === 0)" class="no-porters">
+                    No porters currently assigned
                   </div>
                 </div>
               </div>
@@ -219,9 +304,23 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Service Status -->
-              <div class="service-status">
-                <span class="status-badge">Available</span>
+              <!-- Assigned Porters -->
+              <div class="assigned-porters">
+                <h4 class="porters-title">Assigned Porters</h4>
+                <div class="porters-list">
+                  <div
+                    v-for="assignment in portersByService[service.id] || []"
+                    :key="`service-${assignment.porter.id}`"
+                    class="porter-item"
+                  >
+                    <span class="porter-name">{{ assignment.porter.name }}</span>
+                    <span class="assignment-type temporary">{{ assignment.assignment_type }}</span>
+                  </div>
+
+                  <div v-if="!portersByService[service.id] || portersByService[service.id].length === 0" class="no-porters">
+                    No porters currently assigned
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -504,9 +603,20 @@ onMounted(() => {
 
 .assignment-type {
   font-size: var(--font-size-xs);
-  color: var(--color-neutral-500);
   text-transform: uppercase;
   font-weight: 500;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.assignment-type.regular {
+  color: var(--color-blue-700);
+  background-color: var(--color-blue-100);
+}
+
+.assignment-type.temporary {
+  color: var(--color-orange-700);
+  background-color: var(--color-orange-100);
 }
 
 .no-porters {

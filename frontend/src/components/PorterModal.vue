@@ -284,6 +284,19 @@ const formData = ref<PorterFormData>({
 
 const isEditing = computed(() => props.porter !== null)
 
+// Helper functions for date formatting
+function formatDateForInput(dateString: string | null | undefined): string | undefined {
+  if (!dateString) return undefined
+  // Convert ISO datetime string to YYYY-MM-DD format for date inputs
+  return dateString.split('T')[0]
+}
+
+function formatDateForAPI(dateString: string | undefined): string | undefined {
+  if (!dateString) return undefined
+  // Convert YYYY-MM-DD to ISO datetime string for API
+  return new Date(dateString + 'T00:00:00.000Z').toISOString()
+}
+
 function initializeForm() {
   if (props.porter) {
     formData.value = {
@@ -297,8 +310,8 @@ function initializeForm() {
       regular_department_id: props.porter.regular_department_id,
       temp_department_id: props.porter.temp_department_id,
       temp_service_id: props.porter.temp_service_id,
-      temp_assignment_start: props.porter.temp_assignment_start,
-      temp_assignment_end: props.porter.temp_assignment_end,
+      temp_assignment_start: formatDateForInput(props.porter.temp_assignment_start),
+      temp_assignment_end: formatDateForInput(props.porter.temp_assignment_end),
       is_active: Boolean(props.porter.is_active)
     }
   } else {
@@ -379,7 +392,14 @@ async function handleSubmit() {
       }
     }
 
-    await emit('save', formData.value)
+    // Prepare data for API with properly formatted dates
+    const apiData = {
+      ...formData.value,
+      temp_assignment_start: formatDateForAPI(formData.value.temp_assignment_start),
+      temp_assignment_end: formatDateForAPI(formData.value.temp_assignment_end)
+    }
+
+    await emit('save', apiData)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to save porter'
   } finally {
