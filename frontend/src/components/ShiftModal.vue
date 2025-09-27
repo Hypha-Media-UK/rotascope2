@@ -1,9 +1,9 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
+    <div class="modal">
       <div class="modal-header">
-        <h2>{{ isEditing ? 'Edit Shift' : 'Create Shift' }}</h2>
-        <button @click="$emit('close')" class="btn-close">&times;</button>
+        <h2 class="modal-title">{{ isEditing ? 'Edit Shift' : 'Create Shift' }}</h2>
+        <button @click="$emit('close')" class="btn btn-sm btn-secondary">✕</button>
       </div>
 
       <form @submit.prevent="handleSubmit" class="modal-body">
@@ -147,15 +147,16 @@
           </label>
         </div>
 
-        <div class="modal-actions">
-          <button type="button" @click="$emit('close')" class="btn btn-secondary">
-            Cancel
-          </button>
-          <button type="submit" :disabled="loading" class="btn btn-primary">
-            {{ loading ? 'Saving...' : (isEditing ? 'Update Shift' : 'Create Shift') }}
-          </button>
-        </div>
       </form>
+
+      <div class="modal-footer">
+        <button type="button" @click="$emit('close')" class="btn btn-secondary" :disabled="loading">
+          Cancel
+        </button>
+        <button @click="handleSubmit" class="btn btn-primary" :disabled="loading">
+          {{ loading ? 'Saving...' : (isEditing ? 'Update Shift' : 'Create Shift') }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -243,94 +244,15 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-lg);
+.modal {
   width: 90%;
   max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--color-text-primary);
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close:hover {
-  color: var(--color-text-primary);
-}
-
-.modal-body {
-  padding: var(--space-6);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
-}
-
-.form-group {
-  margin-bottom: var(--space-4);
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: var(--space-2);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.form-input {
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
-  font-size: 1rem;
-  resize: vertical;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-help {
@@ -349,59 +271,5 @@ async function handleSubmit() {
 
 .form-checkbox {
   width: auto;
-}
-
-.modal-actions {
-  display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
-}
-
-.alert {
-  padding: var(--space-3);
-  border-radius: var(--border-radius);
-  margin-bottom: var(--space-4);
-}
-
-.alert-error {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.btn {
-  padding: var(--space-3) var(--space-4);
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: var(--color-background-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background: var(--color-background-tertiary);
 }
 </style>

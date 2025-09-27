@@ -88,9 +88,7 @@ function getShiftInfoItems(shift: Shift) {
     { label: 'Type', value: `${shift.shift_type} (${shift.shift_identifier})` },
     { label: 'Times', value: `${formatTime(shift.starts_at)} - ${formatTime(shift.ends_at)}` },
     { label: 'Pattern', value: `${shift.days_on} on, ${shift.days_off} off` },
-    { label: 'Offset', value: `${shift.shift_offset} days` },
-    { label: 'Ground Zero', value: new Date(shift.ground_zero_date).toLocaleDateString() },
-    { label: 'Status', value: shift.is_active ? 'Active' : 'Inactive' }
+    { label: 'Offset', value: `${shift.shift_offset} days` }
   ]
 }
 
