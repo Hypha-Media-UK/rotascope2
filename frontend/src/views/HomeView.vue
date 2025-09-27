@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { departmentApi, serviceApi, assignmentApi } from '@/services/api'
-import type { Department, Service, Assignment } from '@/types'
+import { departmentApi, serviceApi } from '@/services/api'
+import type { Department, Service, WeekTab, ScheduleDay, ActiveShift } from '@/types'
+import WeekNavigation from '@/components/WeekNavigation.vue'
+import ShiftCard from '@/components/ShiftCard.vue'
 
 // State
-const departments = ref<Department[]>([])
-const services = ref<Service[]>([])
-const assignments = ref<Assignment[]>([])
+const scheduleData = ref<ScheduleDay | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const selectedWeek = ref<WeekTab | null>(null)
 const selectedDate = ref(new Date())
 
 // Computed properties
@@ -21,59 +22,67 @@ const currentDateString = computed(() => {
   })
 })
 
-const departmentsList = computed(() => departments.value)
-const servicesList = computed(() => services.value)
+const departmentsList = computed(() => scheduleData.value?.departments || [])
+const servicesList = computed(() => scheduleData.value?.services || [])
+const activeShifts = computed(() => scheduleData.value?.active_shifts || [])
 
-// Week navigation
+// Week days for the selected week
 const weekDays = computed(() => {
-  const startOfWeek = new Date(selectedDate.value)
-  const day = startOfWeek.getDay()
-  const diff = startOfWeek.getDate() - day
-  startOfWeek.setDate(diff)
+  if (!selectedWeek.value) return []
 
+  const startDate = selectedWeek.value.start_date
   const days = []
   for (let i = 0; i < 7; i++) {
-    const date = new Date(startOfWeek)
-    date.setDate(startOfWeek.getDate() + i)
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
     days.push(date)
   }
   return days
 })
 
 // Methods
-async function loadData() {
+async function loadScheduleData(date: Date) {
   try {
     loading.value = true
     error.value = null
 
-    const [departmentsData, servicesData, assignmentsData] = await Promise.all([
-      departmentApi.getAll(),
-      serviceApi.getAll(),
-      assignmentApi.getAll()
-    ])
+    const dateString = date.toISOString().split('T')[0] // YYYY-MM-DD format
+    const response = await fetch(`/api/schedule/${dateString}`)
 
-    departments.value = departmentsData
-    services.value = servicesData
-    assignments.value = assignmentsData
+    if (!response.ok) {
+      throw new Error('Failed to load schedule data')
+    }
+
+    const data = await response.json()
+    scheduleData.value = data
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load data'
-    console.error('Error loading data:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load schedule data'
+    console.error('Error loading schedule data:', err)
   } finally {
     loading.value = false
   }
 }
 
+function onWeekSelected(week: WeekTab) {
+  selectedWeek.value = week
+  selectedDate.value = week.start_date
+  loadScheduleData(week.start_date)
+}
+
 function selectDate(date: Date) {
   selectedDate.value = new Date(date)
+  loadScheduleData(date)
 }
 
 function goToToday() {
-  selectedDate.value = new Date()
+  const today = new Date()
+  selectedDate.value = today
+  loadScheduleData(today)
 }
 
 // Lifecycle
 onMounted(() => {
-  loadData()
+  // Initial load will be triggered by WeekNavigation component
 })
 </script>
 
@@ -85,29 +94,28 @@ onMounted(() => {
         <h1 class="page-title">Porter Schedule</h1>
         <p class="page-subtitle">{{ currentDateString }}</p>
       </div>
+    </div>
 
-      <!-- Week Navigation -->
-      <div class="week-navigation">
-        <div class="week-days">
-          <button
-            v-for="day in weekDays"
-            :key="day.toISOString()"
-            @click="selectDate(day)"
-            :class="[
-              'day-button',
-              {
-                'day-button--selected': day.toDateString() === selectedDate.toDateString(),
-                'day-button--today': day.toDateString() === new Date().toDateString()
-              }
-            ]"
-          >
-            <span class="day-name">{{ day.toLocaleDateString('en-GB', { weekday: 'short' }) }}</span>
-            <span class="day-number">{{ day.getDate() }}</span>
-          </button>
-        </div>
+    <!-- 3-Week Navigation -->
+    <WeekNavigation @week-selected="onWeekSelected" />
 
-        <button @click="goToToday" class="btn btn-sm btn-secondary">
-          Today
+    <!-- Day Navigation within Selected Week -->
+    <div v-if="selectedWeek" class="day-navigation">
+      <div class="week-days">
+        <button
+          v-for="day in weekDays"
+          :key="day.toISOString()"
+          @click="selectDate(day)"
+          :class="[
+            'day-button',
+            {
+              'day-button--selected': day.toDateString() === selectedDate.toDateString(),
+              'day-button--today': day.toDateString() === new Date().toDateString()
+            }
+          ]"
+        >
+          <span class="day-name">{{ day.toLocaleDateString('en-GB', { weekday: 'short' }) }}</span>
+          <span class="day-number">{{ day.getDate() }}</span>
         </button>
       </div>
     </div>
@@ -126,15 +134,16 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Departments and Services Schedule -->
+    <!-- Schedule Content -->
     <div v-else class="schedule-container">
-      <!-- Departments Section -->
+      <!-- Departments Section (includes shift cards) -->
       <div class="section">
-        <h2 class="section-title">Departments</h2>
+        <h2 class="section-title">Departments & Active Shifts</h2>
         <div class="schedule-grid">
+          <!-- Department Cards -->
           <div
             v-for="department in departmentsList"
-            :key="department.id"
+            :key="`dept-${department.id}`"
             class="department-card"
           >
             <div class="department-header">
@@ -162,22 +171,21 @@ onMounted(() => {
               <div class="assigned-porters">
                 <h4 class="porters-title">Assigned Porters</h4>
                 <div class="porters-list">
-                  <div
-                    v-for="assignment in assignments.filter(a => a.department_id === department.id)"
-                    :key="assignment.id"
-                    class="porter-item"
-                  >
-                    <span class="porter-name">{{ assignment.porter_name }}</span>
-                    <span class="assignment-type">{{ assignment.assignment_type }}</span>
-                  </div>
-
-                  <div v-if="assignments.filter(a => a.department_id === department.id).length === 0" class="no-porters">
-                    No porters currently assigned
+                  <div class="no-porters">
+                    Porter assignments shown in shift cards below
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Active Shift Cards -->
+          <ShiftCard
+            v-for="shift in activeShifts"
+            :key="`shift-${shift.shift.id}`"
+            :shift="shift"
+            class="shift-card-item"
+          />
         </div>
       </div>
 
@@ -211,23 +219,9 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Assigned Porters -->
-              <div class="assigned-porters">
-                <h4 class="porters-title">Assigned Porters</h4>
-                <div class="porters-list">
-                  <div
-                    v-for="assignment in assignments.filter(a => a.department_id === service.id)"
-                    :key="assignment.id"
-                    class="porter-item"
-                  >
-                    <span class="porter-name">{{ assignment.porter_name }}</span>
-                    <span class="assignment-type">{{ assignment.assignment_type }}</span>
-                  </div>
-
-                  <div v-if="assignments.filter(a => a.department_id === service.id).length === 0" class="no-porters">
-                    No porters currently assigned
-                  </div>
-                </div>
+              <!-- Service Status -->
+              <div class="service-status">
+                <span class="status-badge">Available</span>
               </div>
             </div>
           </div>
@@ -236,7 +230,7 @@ onMounted(() => {
     </div>
 
     <!-- Empty State -->
-    <div v-if="!loading && !error && departments.length === 0" class="empty-state">
+    <div v-if="!loading && !error && departmentsList.length === 0" class="empty-state">
       <h3>No Departments Found</h3>
       <p>Get started by configuring departments and porters.</p>
       <router-link to="/configure" class="btn btn-primary">
@@ -276,10 +270,18 @@ onMounted(() => {
   margin: 0;
 }
 
-.week-navigation {
+.day-navigation {
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+  background-color: var(--color-neutral-50);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-neutral-200);
+}
+
+.day-navigation .week-days {
   display: flex;
-  align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
+  justify-content: center;
 }
 
 .week-days {

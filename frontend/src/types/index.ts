@@ -67,11 +67,16 @@ export interface Porter {
   name: string;
   email?: string;
   phone?: string;
-  porter_type: 'PORTER' | 'SENIOR_PORTER' | 'SUPERVISOR';
+  porter_type: 'REGULAR' | 'RELIEF';
   contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
   weekly_contracted_hours: number;
   shift_id?: number;
+  porter_offset?: number;
   regular_department_id?: number;
+  temp_department_id?: number;
+  temp_service_id?: number;
+  temp_assignment_start?: string;
+  temp_assignment_end?: string;
   is_floor_staff: boolean;
   is_active: boolean;
   created_at: string;
@@ -171,9 +176,16 @@ export interface ServiceFormData {
 export interface PorterFormData {
   name: string;
   email?: string;
-  porter_type: 'PORTER' | 'SENIOR_PORTER' | 'SUPERVISOR';
+  porter_type: 'REGULAR' | 'RELIEF';
   contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
   weekly_contracted_hours?: number;
+  shift_id?: number;
+  porter_offset?: number;
+  regular_department_id?: number;
+  temp_department_id?: number;
+  temp_service_id?: number;
+  temp_assignment_start?: string;
+  temp_assignment_end?: string;
   is_active: boolean;
 }
 
@@ -218,6 +230,32 @@ export interface StaffingAlert {
     porter_name: string;
     issue: string;
   }>;
+}
+
+// Home page types
+export interface WeekTab {
+  label: string; // "w/c 29/09/25"
+  start_date: Date;
+  is_current: boolean;
+}
+
+export interface ActiveShift {
+  shift: Shift;
+  assigned_porters: Array<{
+    porter: Porter;
+    is_active_today: boolean;
+    is_temporarily_assigned: boolean;
+    temp_assignment_location?: string; // Department or Service name
+  }>;
+  is_active_today: boolean;
+}
+
+export interface ScheduleDay {
+  date: string;
+  departments: Department[];
+  services: Service[];
+  active_shifts: ActiveShift[];
+  frozen_at?: string; // When this day was frozen
 }
 
 export interface DaySchedule {
