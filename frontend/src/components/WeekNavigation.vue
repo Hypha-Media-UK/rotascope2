@@ -44,6 +44,7 @@ import type { WeekTab } from '@/types'
 
 interface Emits {
   (e: 'week-selected', week: WeekTab): void
+  (e: 'today-selected', week: WeekTab): void
 }
 
 const emit = defineEmits<Emits>()
@@ -56,19 +57,19 @@ const selectedWeek = ref<WeekTab | null>(null)
 const weekTabs = computed(() => {
   const tabs: WeekTab[] = []
   const today = new Date()
-  
+
   for (let i = 0; i < 3; i++) {
     const weekOffset = currentWeekOffset.value + i
     const startDate = getWeekStart(today, weekOffset)
     const isCurrent = weekOffset === 0
-    
+
     tabs.push({
       label: formatWeekCommencing(startDate),
       start_date: startDate,
       is_current: isCurrent
     })
   }
-  
+
   return tabs
 })
 
@@ -91,12 +92,12 @@ function formatWeekCommencing(date: Date): string {
 function formatWeekDates(startDate: Date): string {
   const endDate = new Date(startDate)
   endDate.setDate(startDate.getDate() + 6)
-  
+
   const startDay = startDate.getDate()
   const endDay = endDate.getDate()
   const startMonth = startDate.toLocaleDateString('en-GB', { month: 'short' })
   const endMonth = endDate.toLocaleDateString('en-GB', { month: 'short' })
-  
+
   if (startMonth === endMonth) {
     return `${startDay}-${endDay} ${startMonth}`
   } else {
@@ -131,11 +132,12 @@ function goToNextWeek() {
 
 function goToToday() {
   currentWeekOffset.value = 0
-  // Auto-select current week
+  // Auto-select current week and emit today-selected event
   setTimeout(() => {
     const currentWeek = weekTabs.value.find(w => w.is_current)
     if (currentWeek) {
-      selectWeek(currentWeek)
+      selectedWeek.value = currentWeek
+      emit('today-selected', currentWeek)
     }
   }, 0)
 }
@@ -145,7 +147,7 @@ function checkAutoAdvance() {
   const now = new Date()
   const currentTime = now.getHours() * 60 + now.getMinutes()
   const advanceTime = 7 * 60 + 59 // 07:59
-  
+
   // If it's past 07:59 and we haven't advanced today, advance the weeks
   if (currentTime >= advanceTime) {
     // This would be handled by a background job in production
@@ -155,12 +157,13 @@ function checkAutoAdvance() {
 
 // Lifecycle
 onMounted(() => {
-  // Select current week by default
+  // Select current week and emit today-selected for initial load
   const currentWeek = weekTabs.value.find(w => w.is_current)
   if (currentWeek) {
-    selectWeek(currentWeek)
+    selectedWeek.value = currentWeek
+    emit('today-selected', currentWeek)
   }
-  
+
   // Check for auto-advance
   checkAutoAdvance()
 })
@@ -265,17 +268,17 @@ onMounted(() => {
     flex-direction: column;
     gap: var(--space-3);
   }
-  
+
   .week-tabs {
     order: -1;
     width: 100%;
   }
-  
+
   .week-tab {
     flex: 1;
     min-width: auto;
   }
-  
+
   .nav-button {
     flex: 1;
   }

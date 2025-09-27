@@ -139,15 +139,40 @@ function selectDate(date: Date) {
   loadScheduleData(date)
 }
 
+function getCurrentWeek(date: Date) {
+  const startOfWeek = new Date(date)
+  const dayOfWeek = date.getDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // Handle Sunday (0) and Monday (1)
+  startOfWeek.setDate(date.getDate() + mondayOffset)
+
+  return {
+    label: 'Current Week',
+    start_date: startOfWeek,
+    is_current: true
+  }
+}
+
 function goToToday() {
   const today = new Date()
   selectedDate.value = today
+  selectedWeek.value = getCurrentWeek(today)
+  loadScheduleData(today)
+}
+
+function onTodaySelected(week: WeekTab) {
+  const today = new Date()
+  selectedDate.value = today
+  selectedWeek.value = week
   loadScheduleData(today)
 }
 
 // Lifecycle
 onMounted(() => {
-  // Initial load will be triggered by WeekNavigation component
+  // Load today's data by default instead of waiting for WeekNavigation
+  const today = new Date()
+  selectedDate.value = today
+  selectedWeek.value = getCurrentWeek(today)
+  loadScheduleData(today)
 })
 </script>
 
@@ -162,7 +187,7 @@ onMounted(() => {
     </div>
 
     <!-- 3-Week Navigation -->
-    <WeekNavigation @week-selected="onWeekSelected" />
+    <WeekNavigation @week-selected="onWeekSelected" @today-selected="onTodaySelected" />
 
     <!-- Day Navigation within Selected Week -->
     <div v-if="selectedWeek" class="day-navigation">
@@ -205,6 +230,14 @@ onMounted(() => {
       <div class="section">
         <h2 class="section-title">Departments & Active Shifts</h2>
         <div class="schedule-grid">
+          <!-- Active Shift Cards (Day & Night Shifts) -->
+          <ShiftCard
+            v-for="shift in activeShifts"
+            :key="`shift-${shift.shift.id}`"
+            :shift="shift"
+            class="shift-card-item"
+          />
+
           <!-- Department Cards -->
           <div
             v-for="department in departmentsList"
@@ -269,14 +302,6 @@ onMounted(() => {
               </div>
             </div>
           </div>
-
-          <!-- Active Shift Cards -->
-          <ShiftCard
-            v-for="shift in activeShifts"
-            :key="`shift-${shift.shift.id}`"
-            :shift="shift"
-            class="shift-card-item"
-          />
         </div>
       </div>
 
