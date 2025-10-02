@@ -118,12 +118,34 @@ CREATE TABLE service_hours (
     INDEX idx_svc_hours_active (is_active)
 );
 
+-- Shift types table for flexible shift categorization
+CREATE TABLE shift_types (
+    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    starts_at TIME NOT NULL,
+    ends_at TIME NOT NULL,
+    display_type ENUM('DAY', 'NIGHT') NOT NULL DEFAULT 'DAY',
+    color VARCHAR(7) NULL, -- Hex color code #FF5733
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- Constraints
+    CONSTRAINT chk_shift_type_name_length CHECK (CHAR_LENGTH(name) >= 3),
+    CONSTRAINT chk_shift_type_times CHECK (starts_at != ends_at),
+    CONSTRAINT chk_shift_type_color CHECK (color IS NULL OR color REGEXP '^#[0-9A-Fa-f]{6}$'),
+
+    -- Indexes
+    UNIQUE KEY uk_shift_type_name (name),
+    INDEX idx_shift_type_display (display_type),
+    INDEX idx_shift_type_active (is_active)
+);
+
 -- Shifts table with proper validation
 CREATE TABLE shifts (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
-    shift_type ENUM('DAY', 'NIGHT') NOT NULL,
-    shift_identifier CHAR(1) NOT NULL, -- A, B, C, D
+    shift_type_id INT UNSIGNED NULL,
     starts_at TIME NOT NULL,
     ends_at TIME NOT NULL,
     days_on TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -133,18 +155,19 @@ CREATE TABLE shifts (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
+
     -- Constraints
     CONSTRAINT chk_shift_name_length CHECK (CHAR_LENGTH(name) >= 3),
-    CONSTRAINT chk_shift_identifier CHECK (shift_identifier IN ('A', 'B', 'C', 'D')),
     CONSTRAINT chk_shift_days_on CHECK (days_on BETWEEN 1 AND 14),
     CONSTRAINT chk_shift_days_off CHECK (days_off BETWEEN 1 AND 14),
     CONSTRAINT chk_shift_offset CHECK (shift_offset <= 13),
-    
+
+    -- Foreign keys
+    FOREIGN KEY (shift_type_id) REFERENCES shift_types(id) ON DELETE SET NULL,
+
     -- Indexes
     UNIQUE KEY uk_shift_name (name),
-    UNIQUE KEY uk_shift_type_identifier (shift_type, shift_identifier),
-    INDEX idx_shift_type (shift_type),
+    INDEX idx_shift_type_id (shift_type_id),
     INDEX idx_shift_active (is_active)
 );
 

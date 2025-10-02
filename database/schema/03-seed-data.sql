@@ -135,11 +135,21 @@ INSERT INTO service_hours (service_id, day_of_week, opens_at, closes_at, porters
 (3, 5, '09:00:00', '16:00:00', 1); -- Friday
 
 -- ============================================================================
+-- SHIFT TYPES
+-- ============================================================================
+
+INSERT INTO shift_types (name, starts_at, ends_at, display_type, color) VALUES
+('Day Shift A', '08:00:00', '20:00:00', 'DAY', '#4CAF50'),
+('Day Shift B', '08:00:00', '20:00:00', 'DAY', '#8BC34A'),
+('Night Shift A', '20:00:00', '08:00:00', 'NIGHT', '#3F51B5'),
+('Night Shift B', '20:00:00', '08:00:00', 'NIGHT', '#673AB7');
+
+-- ============================================================================
 -- SHIFTS
 -- ============================================================================
 
-INSERT INTO shifts (name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active) VALUES
-('Day Shift A', 'DAY', 'A', '08:00:00', '20:00:00', 4, 4, 0, '2025-01-01', TRUE),
-('Day Shift B', 'DAY', 'B', '08:00:00', '20:00:00', 4, 4, 4, '2025-01-01', TRUE),
-('Night Shift A', 'NIGHT', 'A', '20:00:00', '08:00:00', 4, 4, 0, '2025-01-01', TRUE),
-('Night Shift B', 'NIGHT', 'B', '20:00:00', '08:00:00', 4, 4, 4, '2025-01-01', TRUE);
+INSERT INTO shifts (name, shift_type_id, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active) VALUES
+('Day Shift A', 1, '08:00:00', '20:00:00', 4, 4, 0, '2025-01-01', TRUE),
+('Day Shift B', 2, '08:00:00', '20:00:00', 4, 4, 4, '2025-01-01', TRUE),
+('Night Shift A', 3, '20:00:00', '08:00:00', 4, 4, 0, '2025-01-01', TRUE),
+('Night Shift B', 4, '20:00:00', '08:00:00', 4, 4, 4, '2025-01-01', TRUE);

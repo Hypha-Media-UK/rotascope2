@@ -388,7 +388,10 @@ app.get('/api/availability/:date', async (req, res) => {
         td.name as temp_department_name,
         ts.name as temp_service_name,
         s.name as shift_name,
-        s.shift_type,
+        s.shift_type_id,
+        st.name as shift_type_name,
+        st.display_type,
+        st.color,
         s.starts_at as shift_starts_at,
         s.ends_at as shift_ends_at,
         s.days_on,
@@ -400,6 +403,7 @@ app.get('/api/availability/:date', async (req, res) => {
       LEFT JOIN departments td ON p.temp_department_id = td.id
       LEFT JOIN services ts ON p.temp_service_id = ts.id
       LEFT JOIN shifts s ON p.shift_id = s.id
+      LEFT JOIN shift_types st ON s.shift_type_id = st.id
       WHERE p.is_active = 1
       ORDER BY p.name
     `);
@@ -528,7 +532,10 @@ function createAvailabilityRecord(porter: any, locationType: string, locationId:
     shift_info: shiftInfo ? {
       shift_id: shiftInfo.shift_id,
       shift_name: shiftInfo.shift_name,
-      shift_type: shiftInfo.shift_type
+      shift_type_id: shiftInfo.shift_type_id,
+      shift_type_name: shiftInfo.shift_type_name,
+      display_type: shiftInfo.display_type,
+      color: shiftInfo.color
     } : undefined
   };
 }
@@ -547,10 +554,96 @@ function isPorterWorkingShiftToday(porter: any, targetDate: Date, dayOfWeek: num
   return positionInCycle < porter.days_on;
 }
 
+// ============================================================================
+// SHIFT TYPES ENDPOINTS
+// ============================================================================
+
+app.get('/api/shift-types', async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [shiftTypes] = await connection.execute('SELECT * FROM shift_types WHERE is_active = 1 ORDER BY name');
+    await connection.end();
+    res.json(shiftTypes);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/shift-types', async (req, res) => {
+  try {
+    const { name, starts_at, ends_at, display_type, color } = req.body;
+
+    if (!name || !starts_at || !ends_at || !display_type) {
+      return res.status(400).json({ error: 'Missing required shift type data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
+      'INSERT INTO shift_types (name, starts_at, ends_at, display_type, color, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+      [name, starts_at, ends_at, display_type, color || null]
+    );
+    await connection.end();
+
+    return res.status(201).json({ id: (result as any).insertId, message: 'Shift type created successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/shift-types/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, starts_at, ends_at, display_type, color } = req.body;
+
+    if (!name || !starts_at || !ends_at || !display_type) {
+      return res.status(400).json({ error: 'Missing required shift type data' });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'UPDATE shift_types SET name = ?, starts_at = ?, ends_at = ?, display_type = ?, color = ?, updated_at = NOW() WHERE id = ?',
+      [name, starts_at, ends_at, display_type, color || null, id]
+    );
+    await connection.end();
+
+    return res.json({ message: 'Shift type updated successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.delete('/api/shift-types/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute('UPDATE shift_types SET is_active = 0, updated_at = NOW() WHERE id = ?', [id]);
+    await connection.end();
+
+    return res.json({ message: 'Shift type deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ============================================================================
+// SHIFTS ENDPOINTS
+// ============================================================================
+
 app.get('/api/shifts', async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
-    const [shifts] = await connection.execute('SELECT * FROM shifts WHERE is_active = 1 ORDER BY name');
+    const [shifts] = await connection.execute(`
+      SELECT s.*, st.name as shift_type_name, st.display_type, st.color
+      FROM shifts s
+      LEFT JOIN shift_types st ON s.shift_type_id = st.id
+      WHERE s.is_active = 1
+      ORDER BY s.name
+    `);
     await connection.end();
     res.json(shifts);
   } catch (error) {
@@ -561,16 +654,16 @@ app.get('/api/shifts', async (req, res) => {
 
 app.post('/api/shifts', async (req, res) => {
   try {
-    const { name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
+    const { name, shift_type_id, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
 
-    if (!name || !shift_type || !shift_identifier || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
+    if (!name || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
       return res.status(400).json({ error: 'Missing required shift data' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     const [result] = await connection.execute(
-      'INSERT INTO shifts (name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0]
+      'INSERT INTO shifts (name, shift_type_id, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, shift_type_id || null, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0]
     );
     await connection.end();
 
@@ -584,16 +677,16 @@ app.post('/api/shifts', async (req, res) => {
 app.put('/api/shifts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
+    const { name, shift_type_id, starts_at, ends_at, days_on, days_off, shift_offset, ground_zero_date, is_active } = req.body;
 
-    if (!name || !shift_type || !shift_identifier || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
+    if (!name || !starts_at || !ends_at || !days_on || !days_off || !ground_zero_date) {
       return res.status(400).json({ error: 'Missing required shift data' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     await connection.execute(
-      'UPDATE shifts SET name = ?, shift_type = ?, shift_identifier = ?, starts_at = ?, ends_at = ?, days_on = ?, days_off = ?, shift_offset = ?, ground_zero_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
-      [name, shift_type, shift_identifier, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0, id]
+      'UPDATE shifts SET name = ?, shift_type_id = ?, starts_at = ?, ends_at = ?, days_on = ?, days_off = ?, shift_offset = ?, ground_zero_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [name, shift_type_id || null, starts_at, ends_at, days_on, days_off, shift_offset || 0, ground_zero_date, is_active ? 1 : 0, id]
     );
     await connection.end();
 

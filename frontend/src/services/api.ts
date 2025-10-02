@@ -5,6 +5,8 @@ import type {
   Porter,
   PorterWithDetails,
   Shift,
+  ShiftType,
+  ShiftTypeFormData,
   PorterAssignment,
   DepartmentFormData,
   ServiceFormData,
@@ -157,6 +159,37 @@ export const porterApi = {
   },
 };
 
+// Shift Type API
+export const shiftTypeApi = {
+  async getAll(): Promise<ShiftType[]> {
+    return apiRequest<ShiftType[]>('/api/shift-types');
+  },
+
+  async getById(id: number): Promise<ShiftType> {
+    return apiRequest<ShiftType>(`/api/shift-types/${id}`);
+  },
+
+  async create(data: ShiftTypeFormData): Promise<ShiftType> {
+    return apiRequest<ShiftType>('/api/shift-types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: number, data: ShiftTypeFormData): Promise<ShiftType> {
+    return apiRequest<ShiftType>(`/api/shift-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: number): Promise<void> {
+    return apiRequest<void>(`/api/shift-types/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // Shift API
 export const shiftApi = {
   async getAll(): Promise<Shift[]> {
@@ -186,6 +219,10 @@ export const shiftApi = {
       method: 'DELETE',
     });
   },
+
+  async getActiveShifts(date: string): Promise<Shift[]> {
+    return apiRequest<Shift[]>(`/api/shifts/active/${date}`);
+  }
 };
 
 // Assignment API

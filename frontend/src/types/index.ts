@@ -55,11 +55,23 @@ export interface ServiceHours {
   updated_at: string;
 }
 
+export interface ShiftType {
+  id: number;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  display_type: 'DAY' | 'NIGHT';
+  color?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Shift {
   id: number;
   name: string;
-  shift_type: 'DAY' | 'NIGHT';
-  shift_identifier: 'A' | 'B' | 'C' | 'D';
+  shift_type_id?: number;
+  shift_type?: ShiftType; // Populated via JOIN
   starts_at: string; // TIME format "HH:MM:SS"
   ends_at: string; // TIME format "HH:MM:SS"
   days_on: number;
@@ -238,10 +250,17 @@ export interface DailyPorterAvailability {
   shifts: Shift[];
 }
 
+export interface ShiftTypeFormData {
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  display_type: 'DAY' | 'NIGHT';
+  color?: string;
+}
+
 export interface ShiftFormData {
   name: string;
-  shift_type: 'DAY' | 'NIGHT';
-  shift_identifier: 'A' | 'B' | 'C' | 'D';
+  shift_type_id?: number;
   starts_at: string;
   ends_at: string;
   days_on: number;
@@ -348,8 +367,7 @@ export const DAY_NAMES = [
   'Saturday'
 ] as const;
 
-export const SHIFT_TYPES = ['DAY', 'NIGHT'] as const;
-export const SHIFT_IDENTS = ['A', 'B', 'C', 'D'] as const;
+export const SHIFT_DISPLAY_TYPES = ['DAY', 'NIGHT'] as const;
 export const PORTER_TYPES = ['PORTER', 'SUPERVISOR'] as const;
 export const CONTRACTED_HOURS_TYPES = ['SHIFT', 'CUSTOM', 'RELIEF'] as const;
 export const ASSIGNMENT_TYPES = ['PERMANENT', 'TEMPORARY', 'RELIEF'] as const;

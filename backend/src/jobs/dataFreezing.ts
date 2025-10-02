@@ -189,15 +189,17 @@ export class DataFreezingJob {
     
     // Get porters with their assignments
     const [porters] = await connection.execute(`
-      SELECT 
+      SELECT
         p.*,
-        s.name as shift_name, s.shift_type, s.shift_identifier, s.starts_at, s.ends_at,
+        s.name as shift_name, s.shift_type_id, s.starts_at, s.ends_at,
         s.days_on, s.days_off, s.shift_offset, s.ground_zero_date,
+        st.name as shift_type_name, st.display_type, st.color,
         d1.name as regular_department_name,
         d2.name as temp_department_name,
         sv.name as temp_service_name
       FROM porters p
       LEFT JOIN shifts s ON p.shift_id = s.id
+      LEFT JOIN shift_types st ON s.shift_type_id = st.id
       LEFT JOIN departments d1 ON p.regular_department_id = d1.id
       LEFT JOIN departments d2 ON p.temp_department_id = d2.id
       LEFT JOIN services sv ON p.temp_service_id = sv.id

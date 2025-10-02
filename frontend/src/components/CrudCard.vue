@@ -1,7 +1,7 @@
 <template>
-  <div class="department-card">
+  <div class="department-card" :style="color ? { borderLeftColor: color } : {}">
     <div class="card-header">
-      <h3 class="department-name">{{ title }}</h3>
+      <h3 class="department-name" :style="color ? { color: color } : {}">{{ title }}</h3>
       <div class="card-actions">
         <button
           @click="$emit('edit')"
@@ -47,6 +47,7 @@ interface Props {
   title: string
   infoItems: InfoItem[]
   additionalContent?: boolean
+  color?: string
 }
 
 interface Emits {
@@ -65,7 +66,9 @@ defineEmits<Emits>()
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-neutral-200);
+  border-left: 4px solid var(--color-neutral-200);
   overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .card-header {

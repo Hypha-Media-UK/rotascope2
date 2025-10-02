@@ -23,34 +23,19 @@
           />
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="shift-type">Shift Type *</label>
-            <select
-              id="shift-type"
-              v-model="formData.shift_type"
-              required
-              class="form-input"
-            >
-              <option value="DAY">Day Shift</option>
-              <option value="NIGHT">Night Shift</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="shift-identifier">Shift Identifier *</label>
-            <select
-              id="shift-identifier"
-              v-model="formData.shift_identifier"
-              required
-              class="form-input"
-            >
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="shift-type">Shift Type</label>
+          <select
+            id="shift-type"
+            v-model="formData.shift_type_id"
+            class="form-input"
+          >
+            <option value="">No shift type (custom shift)</option>
+            <option v-for="shiftType in shiftTypes" :key="shiftType.id" :value="shiftType.id">
+              {{ shiftType.name }} ({{ shiftType.display_type }})
+            </option>
+          </select>
+          <small class="form-help">Optional: Associate this shift with a shift type for UI display</small>
         </div>
 
         <div class="form-row">
@@ -162,8 +147,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { Shift, ShiftFormData } from '@/types'
+import { ref, computed, watch, onMounted } from 'vue'
+import type { Shift, ShiftFormData, ShiftType } from '@/types'
+import { shiftTypeApi } from '@/services/api'
 
 interface Props {
   shift?: Shift | null
@@ -179,11 +165,12 @@ const emit = defineEmits<Emits>()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+const shiftTypes = ref<ShiftType[]>([])
+const loadingShiftTypes = ref(false)
 
 const formData = ref<ShiftFormData>({
   name: '',
-  shift_type: 'DAY',
-  shift_identifier: 'A',
+  shift_type_id: undefined,
   starts_at: '08:00',
   ends_at: '20:00',
   days_on: 4,
@@ -199,10 +186,9 @@ function initializeForm() {
   if (props.shift) {
     formData.value = {
       name: props.shift.name,
-      shift_type: props.shift.shift_type,
-      shift_identifier: props.shift.shift_identifier,
-      starts_at: props.shift.starts_at,
-      ends_at: props.shift.ends_at,
+      shift_type_id: props.shift.shift_type_id,
+      starts_at: props.shift.starts_at.substring(0, 5), // Remove seconds
+      ends_at: props.shift.ends_at.substring(0, 5), // Remove seconds
       days_on: props.shift.days_on,
       days_off: props.shift.days_off,
       shift_offset: props.shift.shift_offset,
@@ -212,8 +198,7 @@ function initializeForm() {
   } else {
     formData.value = {
       name: '',
-      shift_type: 'DAY',
-      shift_identifier: 'A',
+      shift_type_id: undefined,
       starts_at: '08:00',
       ends_at: '20:00',
       days_on: 4,
@@ -225,16 +210,39 @@ function initializeForm() {
   }
 }
 
+// Load shift types
+async function loadShiftTypes() {
+  try {
+    loadingShiftTypes.value = true
+    shiftTypes.value = await shiftTypeApi.getAll()
+  } catch (err) {
+    console.error('Error loading shift types:', err)
+  } finally {
+    loadingShiftTypes.value = false
+  }
+}
+
 watch(() => props.shift, () => {
   initializeForm()
 }, { immediate: true })
+
+onMounted(() => {
+  loadShiftTypes()
+})
 
 async function handleSubmit() {
   error.value = null
   loading.value = true
 
   try {
-    await emit('save', formData.value)
+    // Convert times to include seconds for backend
+    const submitData: ShiftFormData = {
+      ...formData.value,
+      starts_at: formData.value.starts_at + ':00',
+      ends_at: formData.value.ends_at + ':00'
+    }
+
+    await emit('save', submitData)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to save shift'
   } finally {

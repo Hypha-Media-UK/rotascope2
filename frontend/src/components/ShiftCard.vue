@@ -15,7 +15,16 @@
     <div class="shift-info">
       <div class="shift-detail">
         <span class="detail-label">Type:</span>
-        <span class="detail-value">{{ shift.shift.shift_type }}</span>
+        <span class="detail-value">
+          <span v-if="shift.shift.shift_type_id && shift.shift.shift_type"
+                :style="{ color: shift.shift.shift_type.color }"
+                class="shift-type-badge">
+            {{ shift.shift.shift_type.name }} ({{ shift.shift.shift_type.display_type }})
+          </span>
+          <span v-else class="shift-type-badge custom">
+            Custom Shift
+          </span>
+        </span>
       </div>
       <div class="shift-detail">
         <span class="detail-label">Pattern:</span>
@@ -32,11 +41,11 @@
         Assigned Porters
         <span class="porter-count">({{ shift.assigned_porters.length }})</span>
       </h4>
-      
+
       <div v-if="shift.assigned_porters.length === 0" class="no-porters">
         No porters assigned to this shift
       </div>
-      
+
       <div v-else class="porters-list">
         <div
           v-for="assignment in shift.assigned_porters"
@@ -60,7 +69,7 @@
               </span>
             </div>
           </div>
-          
+
           <div class="porter-status">
             <span v-if="!assignment.is_active_today" class="status-indicator status-indicator--inactive">
               Off Today
@@ -181,6 +190,22 @@ function formatShiftTimes(shift: any): string {
   font-weight: 500;
 }
 
+.shift-type-badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+}
+
+.shift-type-badge.custom {
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  border-color: var(--color-neutral-200);
+}
+
 .porters-section {
   margin-top: var(--space-4);
 }
@@ -296,13 +321,13 @@ function formatShiftTimes(shift: any): string {
     flex-direction: column;
     gap: var(--space-2);
   }
-  
+
   .porter-item {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2);
   }
-  
+
   .porter-status {
     margin-left: 0;
     align-self: flex-end;
