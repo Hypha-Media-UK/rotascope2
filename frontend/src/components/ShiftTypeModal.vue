@@ -479,13 +479,15 @@ onMounted(() => {
 }
 
 .btn-danger {
-  background-color: var(--color-error);
+  background-color: #dc2626;
   color: white;
-  border: 1px solid var(--color-error);
+  border: 1px solid #dc2626;
+  transition: all 0.2s ease;
 }
 
 .btn-danger:hover {
-  background-color: var(--color-error-dark);
-  border-color: var(--color-error-dark);
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  transform: none;
 }
 </style>
