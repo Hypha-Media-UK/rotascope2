@@ -1,24 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { shiftApi, shiftTypeApi } from '@/services/api'
-import type { Shift, ShiftFormData, ShiftType, ShiftTypeFormData } from '@/types'
+import type { Shift, ShiftFormData } from '@/types'
 import CrudCard from './CrudCard.vue'
 import ShiftModal from './ShiftModal.vue'
 import ShiftTypeModal from './ShiftTypeModal.vue'
 
 // State
 const shifts = ref<Shift[]>([])
-const shiftTypes = ref<ShiftType[]>([])
+const shiftTypes = ref([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const showModal = ref(false)
 const showShiftTypeModal = ref(false)
 const editingShift = ref<Shift | null>(null)
-const editingShiftType = ref<ShiftType | null>(null)
 
 // Computed
 const isEditing = computed(() => editingShift.value !== null)
-const isEditingShiftType = computed(() => editingShiftType.value !== null)
 
 // Methods
 async function loadData() {
@@ -59,12 +57,6 @@ function openEditModal(shift: Shift) {
 }
 
 function openCreateShiftTypeModal() {
-  editingShiftType.value = null
-  showShiftTypeModal.value = true
-}
-
-function openEditShiftTypeModal(shiftType: ShiftType) {
-  editingShiftType.value = shiftType
   showShiftTypeModal.value = true
 }
 
@@ -75,7 +67,8 @@ function closeModal() {
 
 function closeShiftTypeModal() {
   showShiftTypeModal.value = false
-  editingShiftType.value = null
+  // Reload data when modal closes to refresh shift types
+  loadData()
 }
 
 async function handleSave(formData: ShiftFormData) {
@@ -94,21 +87,7 @@ async function handleSave(formData: ShiftFormData) {
   }
 }
 
-async function handleShiftTypeSave(formData: ShiftTypeFormData) {
-  try {
-    if (isEditingShiftType.value && editingShiftType.value) {
-      await shiftTypeApi.update(editingShiftType.value.id, formData)
-    } else {
-      await shiftTypeApi.create(formData)
-    }
 
-    await loadData()
-    closeShiftTypeModal()
-  } catch (err) {
-    console.error('Error saving shift type:', err)
-    throw err // Let the modal handle the error display
-  }
-}
 
 async function handleDelete(shift: Shift) {
   if (!confirm(`Are you sure you want to delete "${shift.name}"?`)) {
@@ -124,19 +103,7 @@ async function handleDelete(shift: Shift) {
   }
 }
 
-async function handleShiftTypeDelete(shiftType: ShiftType) {
-  if (!confirm(`Are you sure you want to delete "${shiftType.name}"?`)) {
-    return
-  }
 
-  try {
-    await shiftTypeApi.delete(shiftType.id)
-    await loadData()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to delete shift type'
-    console.error('Error deleting shift type:', err)
-  }
-}
 
 function getShiftInfoItems(shift: Shift) {
   const items = [
@@ -158,13 +125,7 @@ function getShiftInfoItems(shift: Shift) {
   return items
 }
 
-function getShiftTypeInfoItems(shiftType: ShiftType) {
-  return [
-    { label: 'Display Type', value: shiftType.display_type },
-    { label: 'Times', value: `${formatTime(shiftType.starts_at)} - ${formatTime(shiftType.ends_at)}` },
-    { label: 'Color', value: shiftType.color || 'None' }
-  ]
-}
+
 
 // Lifecycle
 onMounted(() => {
@@ -206,60 +167,25 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Content -->
-    <div v-else class="manager-content">
-      <!-- Shift Types Section -->
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">Shift Types</h3>
-          <p class="section-description">Define shift types for categorization and visual display</p>
-        </div>
+    <!-- Empty State -->
+    <div v-else-if="shifts.length === 0" class="empty-state">
+      <h3>No Shifts</h3>
+      <p>Create your first shift pattern to get started.</p>
+      <button @click="openCreateModal" class="btn btn-primary">
+        Add Shift
+      </button>
+    </div>
 
-        <div v-if="shiftTypes.length === 0" class="empty-state-small">
-          <p>No shift types defined. Create shift types to categorize your shifts.</p>
-          <button @click="openCreateShiftTypeModal" class="btn btn-sm btn-secondary">
-            Add Shift Type
-          </button>
-        </div>
-
-        <div v-else class="shift-types-grid">
-          <CrudCard
-            v-for="shiftType in shiftTypes"
-            :key="shiftType.id"
-            :title="shiftType.name"
-            :info-items="getShiftTypeInfoItems(shiftType)"
-            :color="shiftType.color"
-            @edit="openEditShiftTypeModal(shiftType)"
-            @delete="handleShiftTypeDelete(shiftType)"
-          />
-        </div>
-      </div>
-
-      <!-- Shifts Section -->
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">Shifts</h3>
-          <p class="section-description">Manage shift patterns and schedules</p>
-        </div>
-
-        <div v-if="shifts.length === 0" class="empty-state-small">
-          <p>No shifts created. Create your first shift pattern to get started.</p>
-          <button @click="openCreateModal" class="btn btn-sm btn-primary">
-            Add Shift
-          </button>
-        </div>
-
-        <div v-else class="departments-grid">
-          <CrudCard
-            v-for="shift in shifts"
-            :key="shift.id"
-            :title="shift.name"
-            :info-items="getShiftInfoItems(shift)"
-            @edit="openEditModal(shift)"
-            @delete="handleDelete(shift)"
-          />
-        </div>
-      </div>
+    <!-- Shifts Grid -->
+    <div v-else class="departments-grid">
+      <CrudCard
+        v-for="shift in shifts"
+        :key="shift.id"
+        :title="shift.name"
+        :info-items="getShiftInfoItems(shift)"
+        @edit="openEditModal(shift)"
+        @delete="handleDelete(shift)"
+      />
     </div>
 
     <!-- Shift Modal -->
@@ -273,8 +199,6 @@ onMounted(() => {
     <!-- Shift Type Modal -->
     <ShiftTypeModal
       v-if="showShiftTypeModal"
-      :shift-type="editingShiftType"
-      @save="handleShiftTypeSave"
       @close="closeShiftTypeModal"
     />
 
@@ -315,49 +239,7 @@ onMounted(() => {
   gap: var(--space-3);
 }
 
-.manager-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
 
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.section-header {
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: var(--space-3);
-}
-
-.section-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.section-description {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  margin: 0;
-}
-
-.shift-types-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--space-4);
-}
-
-.empty-state-small {
-  padding: var(--space-6);
-  text-align: center;
-  background: var(--color-background-secondary);
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--color-border);
-}
 
 .loading-state,
 .empty-state {
