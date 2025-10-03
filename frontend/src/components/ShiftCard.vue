@@ -12,29 +12,7 @@
       </div>
     </div>
 
-    <div class="shift-info">
-      <div class="shift-detail">
-        <span class="detail-label">Type:</span>
-        <span class="detail-value">
-          <span v-if="shift.shift.shift_type_id && shift.shift.shift_type"
-                :style="{ color: shift.shift.shift_type.color }"
-                class="shift-type-badge">
-            {{ shift.shift.shift_type.name }} ({{ shift.shift.shift_type.display_type }})
-          </span>
-          <span v-else class="shift-type-badge custom">
-            Custom Shift
-          </span>
-        </span>
-      </div>
-      <div class="shift-detail">
-        <span class="detail-label">Pattern:</span>
-        <span class="detail-value">{{ shift.shift.days_on }} on, {{ shift.shift.days_off }} off</span>
-      </div>
-      <div v-if="shift.shift.shift_offset" class="shift-detail">
-        <span class="detail-label">Offset:</span>
-        <span class="detail-value">{{ shift.shift.shift_offset }} days</span>
-      </div>
-    </div>
+
 
     <div class="porters-section">
       <h4 class="porters-title">
@@ -67,9 +45,6 @@
               <span v-if="assignment.porter.porter_offset" class="porter-offset">
                 Offset: +{{ assignment.porter.porter_offset }}d
               </span>
-              <span v-if="assignment.porter.regular_department_name" class="porter-department">
-                {{ assignment.porter.regular_department_name }}
-              </span>
             </div>
           </div>
 
@@ -80,8 +55,7 @@
             <span v-else-if="assignment.is_temporarily_assigned" class="status-indicator status-indicator--temp">
               → {{ assignment.temp_assignment_location }}
             </span>
-            <span v-else class="status-indicator status-indicator--active">
-              On Shift
+            <span v-else class="status-light status-light--active" title="On Shift">
             </span>
           </div>
         </div>
@@ -168,13 +142,7 @@ function formatShiftTimes(shift: any): string {
   color: rgb(21 128 61);
 }
 
-.shift-info {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-neutral-100);
-}
+
 
 .shift-detail {
   display: flex;
@@ -251,9 +219,9 @@ function formatShiftTimes(shift: any): string {
   justify-content: space-between;
   align-items: center;
   padding: var(--space-2) var(--space-3);
-  background-color: var(--color-neutral-50);
+  background-color: rgb(34 197 94 / 0.1);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-neutral-200);
+  border: 1px solid rgb(34 197 94 / 0.2);
   transition: all 0.2s ease;
 }
 
@@ -262,8 +230,8 @@ function formatShiftTimes(shift: any): string {
 }
 
 .porter-item--clickable:hover {
-  background-color: var(--color-neutral-100);
-  border-color: var(--color-primary-300);
+  background-color: rgb(34 197 94 / 0.15);
+  border-color: rgb(34 197 94 / 0.3);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -306,9 +274,7 @@ function formatShiftTimes(shift: any): string {
   color: var(--color-blue-600);
 }
 
-.porter-department {
-  color: var(--color-neutral-500);
-}
+
 
 .porter-status {
   margin-left: var(--space-3);
@@ -322,9 +288,16 @@ function formatShiftTimes(shift: any): string {
   white-space: nowrap;
 }
 
-.status-indicator--active {
-  background-color: rgb(34 197 94 / 0.1);
-  color: rgb(21 128 61);
+.status-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-light--active {
+  background-color: rgb(34 197 94);
+  box-shadow: 0 0 4px rgb(34 197 94 / 0.5);
 }
 
 .status-indicator--inactive {
@@ -339,10 +312,6 @@ function formatShiftTimes(shift: any): string {
 }
 
 @container (max-width: 480px) {
-  .shift-info {
-    flex-direction: column;
-    gap: var(--space-2);
-  }
 
   .porter-item {
     flex-direction: column;
