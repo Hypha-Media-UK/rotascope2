@@ -63,8 +63,19 @@ app.post('/api/departments', async (req, res) => {
         return res.status(201).json({ id: result.insertId, message: 'Department created successfully' });
     }
     catch (error) {
-        console.error('Error:', error);
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Error creating department:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            if (error.message.includes('name')) {
+                return res.status(400).json({ error: 'A department with this name already exists' });
+            }
+            else if (error.message.includes('code')) {
+                return res.status(400).json({ error: 'A department with a similar name already exists' });
+            }
+            else {
+                return res.status(400).json({ error: 'Department name must be unique' });
+            }
+        }
+        return res.status(500).json({ error: 'Failed to create department' });
     }
 });
 app.put('/api/departments/:id', async (req, res) => {
@@ -75,13 +86,24 @@ app.put('/api/departments/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid department data' });
         }
         const connection = await promise_1.default.createConnection(dbConfig);
-        await connection.execute('UPDATE departments SET name = ?, is_24_7 = ?, porters_required_day = ?, porters_required_night = ?, updated_at = NOW() WHERE id = ?', [name, is_24_7 ? 1 : 0, porters_required_day, porters_required_night, id]);
+        await connection.execute('UPDATE departments SET name = ?, code = ?, is_24_7 = ?, porters_required_day = ?, porters_required_night = ?, updated_at = NOW() WHERE id = ?', [name, name.toUpperCase().replace(/\s+/g, ''), is_24_7 ? 1 : 0, porters_required_day, porters_required_night, id]);
         await connection.end();
         return res.json({ message: 'Department updated successfully' });
     }
     catch (error) {
-        console.error('Error:', error);
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Error updating department:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            if (error.message.includes('name')) {
+                return res.status(400).json({ error: 'A department with this name already exists' });
+            }
+            else if (error.message.includes('code')) {
+                return res.status(400).json({ error: 'A department with a similar name already exists' });
+            }
+            else {
+                return res.status(400).json({ error: 'Department name must be unique' });
+            }
+        }
+        return res.status(500).json({ error: 'Failed to update department' });
     }
 });
 app.delete('/api/departments/:id', async (req, res) => {
