@@ -268,7 +268,7 @@
           </div>
 
           <h3 class="section-title">Temporary Assignment</h3>
-          <p class="section-description">Temporary assignments override shift assignments for the specified period.</p>
+          <p class="section-description">Temporary assignments override regular assignments for the specified time period within the current shift.</p>
 
           <div class="form-row">
             <div class="form-group">
@@ -304,25 +304,29 @@
 
           <div v-if="formData.temp_department_id || formData.temp_service_id" class="form-row">
             <div class="form-group">
-              <label for="temp-start">Start Date *</label>
+              <label for="temp-start">Start Time *</label>
               <input
                 id="temp-start"
                 v-model="formData.temp_assignment_start"
-                type="date"
+                type="time"
                 required
                 class="form-input"
+                placeholder="HH:MM"
               />
+              <small class="form-help">Time when temporary assignment begins</small>
             </div>
 
             <div class="form-group">
-              <label for="temp-end">End Date *</label>
+              <label for="temp-end">End Time *</label>
               <input
                 id="temp-end"
                 v-model="formData.temp_assignment_end"
-                type="date"
+                type="time"
                 required
                 class="form-input"
+                placeholder="HH:MM"
               />
+              <small class="form-help">Time when temporary assignment ends</small>
             </div>
           </div>
         </div>
@@ -392,17 +396,27 @@ const formData = ref<PorterFormData>({
 
 const isEditing = computed(() => props.porter !== null)
 
-// Helper functions for date formatting
-function formatDateForInput(dateString: string | null | undefined): string | undefined {
-  if (!dateString) return undefined
-  // Convert ISO datetime string to YYYY-MM-DD format for date inputs
-  return dateString.split('T')[0]
+// Helper functions for time formatting
+function formatTimeForInput(timeString: string | null | undefined): string | undefined {
+  if (!timeString) return undefined
+  // If it's already in HH:MM format, return as is
+  if (timeString.includes(':') && timeString.length <= 8) {
+    return timeString.substring(0, 5) // Return HH:MM part only
+  }
+  // If it's an ISO datetime string, extract time part
+  if (timeString.includes('T')) {
+    return timeString.split('T')[1].substring(0, 5)
+  }
+  return timeString
 }
 
-function formatDateForAPI(dateString: string | undefined): string | undefined {
-  if (!dateString) return undefined
-  // Convert YYYY-MM-DD to ISO datetime string for API
-  return new Date(dateString + 'T00:00:00.000Z').toISOString()
+function formatTimeForAPI(timeString: string | undefined): string | undefined {
+  if (!timeString) return undefined
+  // Ensure time is in HH:MM:SS format for API
+  if (timeString.length === 5) {
+    return timeString + ':00' // Add seconds
+  }
+  return timeString
 }
 
 function initializeForm() {
@@ -419,8 +433,8 @@ function initializeForm() {
       regular_service_id: props.porter.regular_service_id,
       temp_department_id: props.porter.temp_department_id,
       temp_service_id: props.porter.temp_service_id,
-      temp_assignment_start: formatDateForInput(props.porter.temp_assignment_start),
-      temp_assignment_end: formatDateForInput(props.porter.temp_assignment_end),
+      temp_assignment_start: formatTimeForInput(props.porter.temp_assignment_start),
+      temp_assignment_end: formatTimeForInput(props.porter.temp_assignment_end),
       is_active: Boolean(props.porter.is_active),
       custom_hours: [] // Will be loaded from API if porter has custom hours
     }
@@ -551,21 +565,26 @@ async function handleSubmit() {
   loading.value = true
 
   try {
-    // Validate temporary assignment dates
+    // Validate temporary assignment times
     if ((formData.value.temp_department_id || formData.value.temp_service_id)) {
       if (!formData.value.temp_assignment_start || !formData.value.temp_assignment_end) {
-        throw new Error('Start and end dates are required for temporary assignments')
+        throw new Error('Start and end times are required for temporary assignments')
       }
-      if (new Date(formData.value.temp_assignment_start) >= new Date(formData.value.temp_assignment_end)) {
-        throw new Error('End date must be after start date')
+
+      // Convert time strings to comparable format (HH:MM)
+      const startTime = formData.value.temp_assignment_start
+      const endTime = formData.value.temp_assignment_end
+
+      if (startTime >= endTime) {
+        throw new Error('End time must be after start time')
       }
     }
 
-    // Prepare data for API with properly formatted dates
+    // Prepare data for API with properly formatted times
     const apiData = {
       ...formData.value,
-      temp_assignment_start: formatDateForAPI(formData.value.temp_assignment_start),
-      temp_assignment_end: formatDateForAPI(formData.value.temp_assignment_end)
+      temp_assignment_start: formatTimeForAPI(formData.value.temp_assignment_start),
+      temp_assignment_end: formatTimeForAPI(formData.value.temp_assignment_end)
     }
 
     await emit('save', apiData)

@@ -301,11 +301,17 @@ app.post('/api/porters', async (req, res) => {
       return res.status(400).json({ error: 'Missing required porter data' });
     }
 
-    // Helper function to convert ISO datetime to MySQL date format
-    const formatDateForDB = (dateString: string | null): string | null => {
-      if (!dateString) return null;
-      // Convert ISO datetime to YYYY-MM-DD format for MySQL date fields
-      return dateString.split('T')[0];
+    // Helper function to format time for MySQL TIME fields
+    const formatTimeForDB = (timeString: string | null): string | null => {
+      if (!timeString) return null;
+      // Ensure time is in HH:MM:SS format for MySQL TIME fields
+      if (timeString.length === 5) {
+        return timeString + ':00'; // Add seconds if missing
+      }
+      if (timeString.length === 8) {
+        return timeString; // Already in HH:MM:SS format
+      }
+      return timeString;
     };
 
     const connection = await mysql.createConnection(dbConfig);
@@ -320,7 +326,7 @@ app.post('/api/porters', async (req, res) => {
         name, email || null, porter_type, weekly_contracted_hours || 37.50, has_custom_hours ? 1 : 0,
         shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
         temp_department_id || null, temp_service_id || null,
-        formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
+        formatTimeForDB(temp_assignment_start), formatTimeForDB(temp_assignment_end),
         is_active ? 1 : 0
       ]
     );
@@ -347,11 +353,17 @@ app.put('/api/porters/:id', async (req, res) => {
       return res.status(400).json({ error: 'Missing required porter data' });
     }
 
-    // Helper function to convert ISO datetime to MySQL date format
-    const formatDateForDB = (dateString: string | null): string | null => {
-      if (!dateString) return null;
-      // Convert ISO datetime to YYYY-MM-DD format for MySQL date fields
-      return dateString.split('T')[0];
+    // Helper function to format time for MySQL TIME fields
+    const formatTimeForDB = (timeString: string | null): string | null => {
+      if (!timeString) return null;
+      // Ensure time is in HH:MM:SS format for MySQL TIME fields
+      if (timeString.length === 5) {
+        return timeString + ':00'; // Add seconds if missing
+      }
+      if (timeString.length === 8) {
+        return timeString; // Already in HH:MM:SS format
+      }
+      return timeString;
     };
 
     const connection = await mysql.createConnection(dbConfig);
@@ -366,7 +378,7 @@ app.put('/api/porters/:id', async (req, res) => {
         name, email || null, porter_type, weekly_contracted_hours || 37.50, has_custom_hours ? 1 : 0,
         shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
         temp_department_id || null, temp_service_id || null,
-        formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
+        formatTimeForDB(temp_assignment_start), formatTimeForDB(temp_assignment_end),
         is_active ? 1 : 0, id
       ]
     );
