@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { departmentApi, serviceApi, porterApi } from '@/services/api'
-import type { Department, Service, WeekTab, ScheduleDay, ActiveShift, DailyPorterAvailability, PorterAvailability, Porter, PorterFormData } from '@/types'
+import type { Department, Service, WeekTab, ScheduleDay, ActiveShift, DailyPorterAvailability, PorterAvailability, Porter, PorterFormData, UnderstaffingAlert } from '@/types'
 import WeekNavigation from '@/components/WeekNavigation.vue'
 import ShiftCard from '@/components/ShiftCard.vue'
 import PorterModal from '@/components/PorterModal.vue'
@@ -34,6 +34,9 @@ const activeShifts = computed(() => scheduleData.value?.active_shifts || [])
 
 // Get all available porters for today
 const availablePorters = computed(() => availabilityData.value?.available_porters || [])
+
+// Get understaffing alerts
+const understaffingAlerts = computed(() => availabilityData.value?.understaffing_alerts || [])
 
 // Extract all porter assignments from active shifts (for shift cards)
 const allPorterAssignments = computed(() => {
@@ -203,6 +206,54 @@ async function handlePorterSave(formData: PorterFormData) {
   }
 }
 
+// Availability status functions
+function getPorterAvailabilityClass(availability: PorterAvailability): string {
+  if (availability.is_currently_available) {
+    return 'porter-item--available'
+  } else if (availability.is_working_today && !availability.is_within_working_hours) {
+    return 'porter-item--on-shift-outside-hours'
+  } else if (!availability.is_working_today) {
+    return 'porter-item--off-shift'
+  }
+  return 'porter-item--unknown'
+}
+
+function getAvailabilityStatusText(availability: PorterAvailability): string {
+  switch (availability.availability_status) {
+    case 'AVAILABLE':
+      return 'Available'
+    case 'OFF_SHIFT':
+      return 'Off Shift'
+    case 'BEFORE_HOURS':
+      return `Starts ${availability.working_hours?.start.substring(0,5) || ''}`
+    case 'AFTER_HOURS':
+      return `Ended ${availability.working_hours?.end.substring(0,5) || ''}`
+    default:
+      return 'Status Unknown'
+  }
+}
+
+// Get understaffing alert for a specific location
+function getUnderstaffingAlert(locationType: 'DEPARTMENT' | 'SERVICE', locationId: number): UnderstaffingAlert | null {
+  return understaffingAlerts.value.find(alert =>
+    alert.location_type === locationType && alert.location_id === locationId
+  ) || null
+}
+
+// Get alert severity class
+function getAlertSeverityClass(severity: string): string {
+  switch (severity) {
+    case 'CRITICAL':
+      return 'alert--critical'
+    case 'HIGH':
+      return 'alert--high'
+    case 'MEDIUM':
+      return 'alert--medium'
+    default:
+      return ''
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   // Load today's data by default instead of waiting for WeekNavigation
@@ -283,7 +334,18 @@ onMounted(() => {
             class="department-card"
           >
             <div class="department-header">
-              <h3 class="department-name">{{ department.name }}</h3>
+              <div class="department-title-section">
+                <h3 class="department-name">{{ department.name }}</h3>
+                <div
+                  v-if="getUnderstaffingAlert('DEPARTMENT', department.id)"
+                  :class="['understaffing-alert', getAlertSeverityClass(getUnderstaffingAlert('DEPARTMENT', department.id)?.severity || '')]"
+                >
+                  <span class="alert-icon">⚠️</span>
+                  <span class="alert-text">
+                    Understaffed: {{ getUnderstaffingAlert('DEPARTMENT', department.id)?.available_porters }}/{{ getUnderstaffingAlert('DEPARTMENT', department.id)?.required_porters }} available
+                  </span>
+                </div>
+              </div>
               <div class="department-info">
                 <span class="department-type">
                   {{ department.is_24_7 ? '24/7' : 'Scheduled' }}
@@ -311,7 +373,11 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByDepartment[department.id] || []"
                     :key="`porter-${availability.porter.id}-${availability.assignment_location.assignment_type}`"
-                    class="porter-item porter-item--clickable"
+                    :class="[
+                      'porter-item',
+                      'porter-item--clickable',
+                      getPorterAvailabilityClass(availability)
+                    ]"
                     @click="openPorterModal(availability.porter.id)"
                     :title="'Click to reassign ' + availability.porter.name"
                   >
@@ -335,6 +401,14 @@ onMounted(() => {
                       >
                         → {{ availability.temp_assignment_info.temp_location }} (until {{ availability.temp_assignment_info.end_time.substring(0,5) }})
                       </span>
+
+                      <!-- Availability status indicator -->
+                      <span
+                        v-if="!availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR'"
+                        class="porter-detail"
+                      >
+                        {{ getAvailabilityStatusText(availability) }}
+                      </span>
                     </div>
 
                     <div class="porter-meta">
@@ -344,6 +418,21 @@ onMounted(() => {
                       >
                         {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
                       </span>
+                      <span
+                        v-if="availability.is_currently_available"
+                        class="status-light status-light--available"
+                        title="Currently Available"
+                      ></span>
+                      <span
+                        v-else-if="availability.is_working_today"
+                        class="status-light status-light--on-shift"
+                        title="On Shift (Outside Hours)"
+                      ></span>
+                      <span
+                        v-else
+                        class="status-light status-light--off-shift"
+                        title="Off Shift"
+                      ></span>
                     </div>
                   </div>
 
@@ -367,7 +456,18 @@ onMounted(() => {
             class="department-card service-card"
           >
             <div class="department-header">
-              <h3 class="department-name">{{ service.name }}</h3>
+              <div class="department-title-section">
+                <h3 class="department-name">{{ service.name }}</h3>
+                <div
+                  v-if="getUnderstaffingAlert('SERVICE', service.id)"
+                  :class="['understaffing-alert', getAlertSeverityClass(getUnderstaffingAlert('SERVICE', service.id)?.severity || '')]"
+                >
+                  <span class="alert-icon">⚠️</span>
+                  <span class="alert-text">
+                    Understaffed: {{ getUnderstaffingAlert('SERVICE', service.id)?.available_porters }}/{{ getUnderstaffingAlert('SERVICE', service.id)?.required_porters }} available
+                  </span>
+                </div>
+              </div>
               <div class="department-info">
                 <span class="department-type">
                   {{ service.is_24_7 ? '24/7' : 'Scheduled' }}
@@ -394,7 +494,11 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByService[service.id] || []"
                     :key="`service-${availability.porter.id}-${availability.assignment_location.assignment_type}`"
-                    class="porter-item porter-item--clickable"
+                    :class="[
+                      'porter-item',
+                      'porter-item--clickable',
+                      getPorterAvailabilityClass(availability)
+                    ]"
                     @click="openPorterModal(availability.porter.id)"
                     :title="'Click to reassign ' + availability.porter.name"
                   >
@@ -418,6 +522,14 @@ onMounted(() => {
                       >
                         → {{ availability.temp_assignment_info.temp_location }} (until {{ availability.temp_assignment_info.end_time.substring(0,5) }})
                       </span>
+
+                      <!-- Availability status indicator -->
+                      <span
+                        v-if="!availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR'"
+                        class="porter-detail"
+                      >
+                        {{ getAvailabilityStatusText(availability) }}
+                      </span>
                     </div>
 
                     <div class="porter-meta">
@@ -427,6 +539,21 @@ onMounted(() => {
                       >
                         {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
                       </span>
+                      <span
+                        v-if="availability.is_currently_available"
+                        class="status-light status-light--available"
+                        title="Currently Available"
+                      ></span>
+                      <span
+                        v-else-if="availability.is_working_today"
+                        class="status-light status-light--on-shift"
+                        title="On Shift (Outside Hours)"
+                      ></span>
+                      <span
+                        v-else
+                        class="status-light status-light--off-shift"
+                        title="Off Shift"
+                      ></span>
                     </div>
                   </div>
 
@@ -633,11 +760,52 @@ onMounted(() => {
   background-color: var(--color-neutral-50);
 }
 
+.department-title-section {
+  margin-bottom: var(--space-3);
+}
+
 .department-name {
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-neutral-900);
-  margin: 0 0 var(--space-3) 0;
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* Understaffing alerts */
+.understaffing-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.alert--critical {
+  background-color: rgb(239 68 68 / 0.1);
+  color: rgb(153 27 27);
+  border: 1px solid rgb(239 68 68 / 0.3);
+}
+
+.alert--high {
+  background-color: rgb(251 146 60 / 0.1);
+  color: rgb(154 52 18);
+  border: 1px solid rgb(251 146 60 / 0.3);
+}
+
+.alert--medium {
+  background-color: rgb(251 191 36 / 0.1);
+  color: rgb(146 64 14);
+  border: 1px solid rgb(251 191 36 / 0.3);
+}
+
+.alert-icon {
+  font-size: var(--font-size-sm);
+}
+
+.alert-text {
+  font-size: var(--font-size-xs);
 }
 
 .department-info {
@@ -751,6 +919,65 @@ onMounted(() => {
 .porter-item--clickable:active {
   transform: translateY(0);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Availability status classes */
+.porter-item--available {
+  background-color: rgb(34 197 94 / 0.1);
+  border-color: rgb(34 197 94 / 0.2);
+}
+
+.porter-item--available:hover {
+  background-color: rgb(34 197 94 / 0.15);
+  border-color: rgb(34 197 94 / 0.3);
+}
+
+.porter-item--on-shift-outside-hours {
+  background-color: rgb(251 191 36 / 0.1);
+  border-color: rgb(251 191 36 / 0.2);
+}
+
+.porter-item--on-shift-outside-hours:hover {
+  background-color: rgb(251 191 36 / 0.15);
+  border-color: rgb(251 191 36 / 0.3);
+}
+
+.porter-item--off-shift {
+  background-color: rgb(239 68 68 / 0.1);
+  border-color: rgb(239 68 68 / 0.2);
+}
+
+.porter-item--off-shift:hover {
+  background-color: rgb(239 68 68 / 0.15);
+  border-color: rgb(239 68 68 / 0.3);
+}
+
+.porter-item--unknown {
+  background-color: var(--color-neutral-100);
+  border-color: var(--color-neutral-300);
+}
+
+/* Status lights */
+.status-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-light--available {
+  background-color: rgb(34 197 94);
+  box-shadow: 0 0 4px rgb(34 197 94 / 0.5);
+}
+
+.status-light--on-shift {
+  background-color: rgb(251 191 36);
+  box-shadow: 0 0 4px rgb(251 191 36 / 0.5);
+}
+
+.status-light--off-shift {
+  background-color: rgb(239 68 68);
+  box-shadow: 0 0 4px rgb(239 68 68 / 0.5);
 }
 
 .porter-name {

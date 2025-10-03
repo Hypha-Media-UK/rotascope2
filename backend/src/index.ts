@@ -263,7 +263,7 @@ app.get('/api/porters/:id', async (req, res) => {
     let customHours: any[] = [];
     if (porter.has_custom_hours) {
       const [hours] = await connection.execute(
-        'SELECT * FROM porter_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
+        'SELECT * FROM porter_custom_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
         [id]
       );
       customHours = hours as any[];
@@ -412,7 +412,7 @@ app.get('/api/porters/:id/hours', async (req, res) => {
     const { id } = req.params;
     const connection = await mysql.createConnection(dbConfig);
     const [rows] = await connection.execute(
-      'SELECT * FROM porter_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
+      'SELECT * FROM porter_custom_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
       [id]
     );
     await connection.end();
@@ -440,12 +440,12 @@ app.put('/api/porters/:id/hours', async (req, res) => {
 
     try {
       // Delete existing hours for this porter
-      await connection.execute('DELETE FROM porter_hours WHERE porter_id = ?', [id]);
+      await connection.execute('DELETE FROM porter_custom_hours WHERE porter_id = ?', [id]);
 
       // Insert new hours
       for (const hour of hours) {
         await connection.execute(
-          'INSERT INTO porter_hours (porter_id, day_of_week, starts_at, ends_at) VALUES (?, ?, ?, ?)',
+          'INSERT INTO porter_custom_hours (porter_id, day_of_week, starts_at, ends_at) VALUES (?, ?, ?, ?)',
           [id, hour.day_of_week, hour.starts_at + ':00', hour.ends_at + ':00']
         );
       }
@@ -506,8 +506,8 @@ app.get('/api/availability/:date', async (req, res) => {
     // Get custom hours for all porters for this day of week
     const [customHours] = await connection.execute(`
       SELECT porter_id, starts_at, ends_at
-      FROM porter_hours
-      WHERE day_of_week = ?
+      FROM porter_custom_hours
+      WHERE day_of_week = ? AND is_active = 1
     `, [dayOfWeek]);
 
     // Get departments and services
@@ -521,8 +521,8 @@ app.get('/api/availability/:date', async (req, res) => {
     const customHoursMap = new Map();
     (customHours as any[]).forEach((hour: any) => {
       customHoursMap.set(hour.porter_id, {
-        start: hour.starts_at,
-        end: hour.ends_at
+        starts_at: hour.starts_at,
+        ends_at: hour.ends_at
       });
     });
 
@@ -536,12 +536,16 @@ app.get('/api/availability/:date', async (req, res) => {
       }
     });
 
+    // Calculate understaffing alerts
+    const understaffingAlerts = calculateUnderstaffingAlerts(availablePorters, departments as any[], services as any[]);
+
     return res.json({
       date: date,
       available_porters: availablePorters,
       departments: departments,
       services: services,
-      shifts: shifts
+      shifts: shifts,
+      understaffing_alerts: understaffingAlerts
     });
 
   } catch (error) {
@@ -563,17 +567,152 @@ function isCurrentlyInTempAssignment(porter: any): boolean {
   return currentTime >= porter.temp_assignment_start && currentTime <= porter.temp_assignment_end;
 }
 
+// Unified function to calculate real-time porter availability
+function calculatePorterRealTimeAvailability(porter: any, targetDate: Date, customHoursMap: Map<number, any>) {
+  const now = new Date();
+  const currentTime = now.toTimeString().substring(0, 8); // HH:MM:SS format
+  const dayOfWeek = targetDate.getDay() === 0 ? 7 : targetDate.getDay(); // Convert Sunday from 0 to 7
+
+  // Check if porter is on shift today (for shift-based porters)
+  const isOnShiftToday = porter.shift_id ? isPorterWorkingShiftToday(porter, targetDate, dayOfWeek) : true;
+
+  // Determine working hours and check if currently within them
+  let workingHours: { start: string; end: string } | null = null;
+  let isWithinWorkingHours = false;
+
+  // Priority 1: Custom hours (part-time porters)
+  if (porter.has_custom_hours && customHoursMap.has(porter.id)) {
+    const customHours = customHoursMap.get(porter.id);
+    workingHours = {
+      start: customHours.starts_at,
+      end: customHours.ends_at
+    };
+    isWithinWorkingHours = currentTime >= customHours.starts_at && currentTime <= customHours.ends_at;
+  }
+  // Priority 2: Shift hours (shift-based porters)
+  else if (porter.shift_id && porter.shift_starts_at && porter.shift_ends_at) {
+    workingHours = {
+      start: porter.shift_starts_at,
+      end: porter.shift_ends_at
+    };
+    isWithinWorkingHours = currentTime >= porter.shift_starts_at && currentTime <= porter.shift_ends_at;
+  }
+  // Priority 3: Always available (24/7 departments/services or relief porters)
+  else {
+    isWithinWorkingHours = true; // Assume available if no specific hours defined
+  }
+
+  // Final availability calculation
+  const isCurrentlyAvailable = isOnShiftToday && isWithinWorkingHours;
+
+  return {
+    is_on_shift_today: isOnShiftToday,
+    is_within_working_hours: isWithinWorkingHours,
+    is_currently_available: isCurrentlyAvailable,
+    working_hours: workingHours,
+    availability_status: getAvailabilityStatus(isOnShiftToday, isWithinWorkingHours, workingHours)
+  };
+}
+
+// Helper function to get human-readable availability status
+function getAvailabilityStatus(isOnShiftToday: boolean, isWithinWorkingHours: boolean, workingHours: any) {
+  if (!isOnShiftToday) {
+    return 'OFF_SHIFT';
+  }
+  if (!isWithinWorkingHours && workingHours) {
+    const now = new Date();
+    const currentTime = now.toTimeString().substring(0, 5); // HH:MM format
+    const endTime = workingHours.end.substring(0, 5);
+    if (currentTime < workingHours.start.substring(0, 5)) {
+      return 'BEFORE_HOURS';
+    } else {
+      return 'AFTER_HOURS';
+    }
+  }
+  if (isOnShiftToday && isWithinWorkingHours) {
+    return 'AVAILABLE';
+  }
+  return 'UNKNOWN';
+}
+
+// Function to calculate understaffing alerts
+function calculateUnderstaffingAlerts(availablePorters: any[], departments: any[], services: any[]) {
+  const alerts: any[] = [];
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  // Determine if it's day or night shift (simplified: day = 6-18, night = 18-6)
+  const isDayShift = currentHour >= 6 && currentHour < 18;
+
+  // Check departments
+  departments.forEach(department => {
+    const requiredPorters = isDayShift ? department.porters_required_day : department.porters_required_night;
+    const assignedPorters = availablePorters.filter(porter =>
+      porter.assignment_location.type === 'DEPARTMENT' &&
+      porter.assignment_location.id === department.id
+    );
+
+    const availableCount = assignedPorters.filter(porter => porter.is_currently_available).length;
+    const onShiftCount = assignedPorters.filter(porter => porter.is_working_today).length;
+
+    if (availableCount < requiredPorters) {
+      alerts.push({
+        type: 'UNDERSTAFFED',
+        location_type: 'DEPARTMENT',
+        location_id: department.id,
+        location_name: department.name,
+        required_porters: requiredPorters,
+        available_porters: availableCount,
+        on_shift_porters: onShiftCount,
+        severity: availableCount === 0 ? 'CRITICAL' : availableCount < requiredPorters / 2 ? 'HIGH' : 'MEDIUM',
+        shift_type: isDayShift ? 'DAY' : 'NIGHT'
+      });
+    }
+  });
+
+  // Check services
+  services.forEach(service => {
+    const requiredPorters = isDayShift ? service.porters_required_day : service.porters_required_night;
+    const assignedPorters = availablePorters.filter(porter =>
+      porter.assignment_location.type === 'SERVICE' &&
+      porter.assignment_location.id === service.id
+    );
+
+    const availableCount = assignedPorters.filter(porter => porter.is_currently_available).length;
+    const onShiftCount = assignedPorters.filter(porter => porter.is_working_today).length;
+
+    if (availableCount < requiredPorters) {
+      alerts.push({
+        type: 'UNDERSTAFFED',
+        location_type: 'SERVICE',
+        location_id: service.id,
+        location_name: service.name,
+        required_porters: requiredPorters,
+        available_porters: availableCount,
+        on_shift_porters: onShiftCount,
+        severity: availableCount === 0 ? 'CRITICAL' : availableCount < requiredPorters / 2 ? 'HIGH' : 'MEDIUM',
+        shift_type: isDayShift ? 'DAY' : 'NIGHT'
+      });
+    }
+  });
+
+  return alerts;
+}
+
 // Helper function to calculate porter availability
 function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: number, customHoursMap: Map<number, any>) {
   const isInTempAssignmentPeriod = isCurrentlyInTempAssignment(porter);
   const availabilityRecords: any[] = [];
 
+  // Calculate real-time availability
+  const availability = calculatePorterRealTimeAvailability(porter, targetDate, customHoursMap);
+
   // Priority 1: Temporary Assignment (if currently active)
   if (isInTempAssignmentPeriod) {
     if (porter.temp_department_id) {
-      availabilityRecords.push(createAvailabilityRecord(porter, 'DEPARTMENT', porter.temp_department_id, porter.temp_department_name, 'TEMPORARY'));
+      availabilityRecords.push(createAvailabilityRecord(porter, 'DEPARTMENT', porter.temp_department_id, porter.temp_department_name, 'TEMPORARY', 'SHIFT', porter, null, isInTempAssignmentPeriod, availability));
     } else if (porter.temp_service_id) {
-      availabilityRecords.push(createAvailabilityRecord(porter, 'SERVICE', porter.temp_service_id, porter.temp_service_name, 'TEMPORARY'));
+      availabilityRecords.push(createAvailabilityRecord(porter, 'SERVICE', porter.temp_service_id, porter.temp_service_name, 'TEMPORARY', 'SHIFT', porter, null, isInTempAssignmentPeriod, availability));
     }
   }
 
@@ -581,27 +720,27 @@ function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: n
   let regularRecord = null;
 
   // Shift Assignment with location
-  if (porter.shift_id && isPorterWorkingShiftToday(porter, targetDate, dayOfWeek)) {
+  if (porter.shift_id && availability.is_on_shift_today) {
     if (porter.regular_department_id) {
-      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod);
+      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod, availability);
     } else if (porter.regular_service_id) {
-      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod);
+      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod, availability);
     }
   }
   // Custom Hours with regular assignment
-  else if (porter.contracted_hours_type === 'CUSTOM' && customHoursMap.has(porter.id)) {
+  else if (porter.has_custom_hours && customHoursMap.has(porter.id)) {
     const hours = customHoursMap.get(porter.id);
     if (porter.regular_department_id) {
-      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod);
+      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod, availability);
     } else if (porter.regular_service_id) {
-      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod);
+      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod, availability);
     }
   }
   // Regular Assignment (always available - for 24/7 departments/services)
   else if (porter.regular_department_id) {
-    regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod);
+    regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod, availability);
   } else if (porter.regular_service_id) {
-    regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod);
+    regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod, availability);
   }
 
   if (regularRecord) {
@@ -612,15 +751,15 @@ function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: n
   return availabilityRecords.length > 0 ? availabilityRecords : null;
 }
 
-function createAvailabilityRecord(porter: any, locationType: string, locationId: number, locationName: string, assignmentType: string, availabilityType: string = 'REGULAR_ASSIGNMENT', shiftInfo: any = null, customHours: any = null, isTemporarilyAssigned: boolean = false) {
+function createAvailabilityRecord(porter: any, locationType: string, locationId: number, locationName: string, assignmentType: string, availabilityType: string = 'REGULAR_ASSIGNMENT', shiftInfo: any = null, customHours: any = null, isTemporarilyAssigned: boolean = false, availability: any = null) {
   return {
     porter: {
       id: porter.id,
       name: porter.name,
       email: porter.email,
       porter_type: porter.porter_type,
-      contracted_hours_type: porter.contracted_hours_type,
       weekly_contracted_hours: porter.weekly_contracted_hours,
+      has_custom_hours: porter.has_custom_hours,
       shift_id: porter.shift_id,
       porter_offset: porter.porter_offset,
       regular_department_id: porter.regular_department_id,
@@ -632,14 +771,17 @@ function createAvailabilityRecord(porter: any, locationType: string, locationId:
       is_active: porter.is_active
     },
     availability_type: availabilityType,
-    is_working_today: true,
+    is_working_today: availability ? availability.is_on_shift_today : true,
+    is_currently_available: availability ? availability.is_currently_available : true,
+    is_within_working_hours: availability ? availability.is_within_working_hours : true,
+    availability_status: availability ? availability.availability_status : 'UNKNOWN',
     is_temporarily_assigned: isTemporarilyAssigned,
     temp_assignment_info: isTemporarilyAssigned ? {
       temp_location: porter.temp_department_name || porter.temp_service_name,
       start_time: porter.temp_assignment_start,
       end_time: porter.temp_assignment_end
     } : undefined,
-    working_hours: customHours || (shiftInfo ? {
+    working_hours: availability?.working_hours || customHours || (shiftInfo ? {
       start: shiftInfo.shift_starts_at,
       end: shiftInfo.shift_ends_at
     } : undefined),

@@ -225,6 +225,9 @@ export interface PorterAvailability {
   porter: Porter;
   availability_type: 'SHIFT' | 'CUSTOM_HOURS' | 'REGULAR_ASSIGNMENT';
   is_working_today: boolean;
+  is_currently_available: boolean;
+  is_within_working_hours: boolean;
+  availability_status: 'AVAILABLE' | 'OFF_SHIFT' | 'BEFORE_HOURS' | 'AFTER_HOURS' | 'UNKNOWN';
   is_temporarily_assigned?: boolean;
   temp_assignment_info?: {
     temp_location: string;
@@ -248,12 +251,25 @@ export interface PorterAvailability {
   };
 }
 
+export interface UnderstaffingAlert {
+  type: 'UNDERSTAFFED';
+  location_type: 'DEPARTMENT' | 'SERVICE';
+  location_id: number;
+  location_name: string;
+  required_porters: number;
+  available_porters: number;
+  on_shift_porters: number;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  shift_type: 'DAY' | 'NIGHT';
+}
+
 export interface DailyPorterAvailability {
   date: string;
   available_porters: PorterAvailability[];
   departments: Department[];
   services: Service[];
   shifts: Shift[];
+  understaffing_alerts?: UnderstaffingAlert[];
 }
 
 export interface ShiftTypeFormData {
