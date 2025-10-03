@@ -229,6 +229,65 @@ app.get('/api/porters', async (req, res) => {
   }
 });
 
+app.get('/api/porters/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await mysql.createConnection(dbConfig);
+
+    // Get porter with related data
+    const [porters] = await connection.execute(`
+      SELECT
+        p.*,
+        s.name as shift_name,
+        rd.name as regular_department_name,
+        rs.name as regular_service_name,
+        td.name as temp_department_name,
+        ts.name as temp_service_name
+      FROM porters p
+      LEFT JOIN shifts s ON p.shift_id = s.id
+      LEFT JOIN departments rd ON p.regular_department_id = rd.id
+      LEFT JOIN services rs ON p.regular_service_id = rs.id
+      LEFT JOIN departments td ON p.temp_department_id = td.id
+      LEFT JOIN services ts ON p.temp_service_id = ts.id
+      WHERE p.id = ? AND p.is_active = 1
+    `, [id]);
+
+    if (!porters || (porters as any[]).length === 0) {
+      await connection.end();
+      return res.status(404).json({ error: 'Porter not found' });
+    }
+
+    const porter = (porters as any[])[0];
+
+    // Get custom hours if porter has them
+    let customHours: any[] = [];
+    if (porter.has_custom_hours) {
+      const [hours] = await connection.execute(
+        'SELECT * FROM porter_hours WHERE porter_id = ? ORDER BY day_of_week, starts_at',
+        [id]
+      );
+      customHours = hours as any[];
+    }
+
+    await connection.end();
+
+    // Return porter with additional details structure expected by frontend
+    const porterWithDetails = {
+      ...porter,
+      custom_hours: customHours,
+      annual_leave: [], // Empty for now, can be populated later if needed
+      sickness: [], // Empty for now
+      absences: [], // Empty for now
+      assignments: [] // Empty for now
+    };
+
+    return res.json(porterWithDetails);
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
 app.post('/api/porters', async (req, res) => {
   try {
     const {
