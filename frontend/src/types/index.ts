@@ -368,6 +368,5 @@ export const DAY_NAMES = [
 ] as const;
 
 export const SHIFT_DISPLAY_TYPES = ['DAY', 'NIGHT'] as const;
-export const PORTER_TYPES = ['PORTER', 'SUPERVISOR'] as const;
-export const CONTRACTED_HOURS_TYPES = ['SHIFT', 'CUSTOM', 'RELIEF'] as const;
+export const PORTER_TYPES = ['PORTER', 'SUPERVISOR', 'SENIOR_PORTER'] as const;
 export const ASSIGNMENT_TYPES = ['PERMANENT', 'TEMPORARY', 'RELIEF'] as const;

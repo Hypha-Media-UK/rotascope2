@@ -77,8 +77,9 @@ async function handleDelete(porter: Porter) {
 
 function getPorterInfoItems(porter: Porter) {
   return [
-    { label: 'Contract', value: porter.contracted_hours_type.replace('_', ' ') },
-    { label: 'Hours/Week', value: `${porter.weekly_contracted_hours}` }
+    { label: 'Type', value: porter.porter_type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) },
+    { label: 'Hours/Week', value: `${porter.weekly_contracted_hours}` },
+    { label: 'Custom Hours', value: porter.has_custom_hours ? 'Yes' : 'No' }
   ]
 }
 

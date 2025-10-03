@@ -546,8 +546,8 @@ async function handleSubmit() {
 
     await emit('save', apiData)
 
-    // Save custom hours if contract type is CUSTOM and we're editing a porter
-    if (formData.value.contracted_hours_type === 'CUSTOM' && isEditing.value && props.porter) {
+    // Save custom hours if custom hours is enabled and we're editing a porter
+    if (formData.value.has_custom_hours && isEditing.value && props.porter) {
       await saveCustomHours(props.porter.id)
     }
   } catch (err) {
