@@ -71,104 +71,12 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="formData.has_custom_hours"
-                class="form-checkbox"
-              />
-              <span class="checkbox-text">Custom Hours</span>
-            </label>
-            <p class="field-help">Check this if the porter has non-standard working hours</p>
-          </div>
+
         </div>
 
-        <div class="form-group">
-          <label for="weekly-hours">Weekly Contracted Hours</label>
-          <input
-            id="weekly-hours"
-            v-model.number="formData.weekly_contracted_hours"
-            type="number"
-            min="1"
-            max="60"
-            step="0.5"
-            placeholder="Enter hours per week"
-            class="form-input"
-          />
-        </div>
 
-        <!-- Custom Hours Section (only show when Custom Hours checkbox is checked) -->
-        <div v-if="formData.has_custom_hours" class="custom-hours-section">
-          <div class="section-header">
-            <h3 class="section-title">Custom Working Hours</h3>
-            <button
-              type="button"
-              @click="addCustomHour"
-              class="btn btn-sm btn-secondary"
-            >
-              Add Hours
-            </button>
-          </div>
 
-          <div v-if="formData.custom_hours.length === 0" class="empty-hours">
-            <p>No custom hours set. Click "Add Hours" to get started.</p>
-          </div>
 
-          <div v-else class="hours-list">
-            <div
-              v-for="(hour, index) in formData.custom_hours"
-              :key="index"
-              class="hour-item"
-            >
-              <div class="hour-fields">
-                <div class="field-group">
-                  <label class="field-label">Day</label>
-                  <select v-model.number="hour.day_of_week" class="form-select">
-                    <option
-                      v-for="(dayName, dayIndex) in DAY_NAMES"
-                      :key="dayIndex"
-                      :value="dayIndex"
-                    >
-                      {{ dayName }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label">Starts</label>
-                  <input
-                    v-model="hour.starts_at"
-                    type="time"
-                    class="form-input"
-                    required
-                  />
-                </div>
-
-                <div class="field-group">
-                  <label class="field-label">Ends</label>
-                  <input
-                    v-model="hour.ends_at"
-                    type="time"
-                    class="form-input"
-                    required
-                  />
-                </div>
-
-                <div class="field-group">
-                  <button
-                    type="button"
-                    @click="removeCustomHour(index)"
-                    class="btn btn-sm btn-danger"
-                    title="Remove this time period"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div class="form-group">
           <label for="porter-offset">Porter Offset (days)</label>
@@ -214,34 +122,141 @@
                 </option>
               </select>
             </div>
+
+            <div class="form-group">
+              <label for="weekly-hours">Weekly Contracted Hours</label>
+              <input
+                id="weekly-hours"
+                v-model.number="formData.weekly_contracted_hours"
+                type="number"
+                min="1"
+                max="60"
+                step="0.5"
+                placeholder="Enter hours per week"
+                class="form-input"
+              />
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="regular-department">Regular Department</label>
-            <select
-              id="regular-department"
-              v-model="formData.regular_department_id"
-              class="form-select"
-            >
-              <option value="">No department assignment</option>
-              <option v-for="department in departments" :key="department.id" :value="department.id">
-                {{ department.name }}
-              </option>
-            </select>
+          <div class="form-row-with-divider">
+            <div class="form-group">
+              <label for="regular-department">Regular Department</label>
+              <select
+                id="regular-department"
+                v-model="formData.regular_department_id"
+                class="form-select"
+                :disabled="!!formData.regular_service_id"
+              >
+                <option value="">No department assignment</option>
+                <option v-for="department in departments" :key="department.id" :value="department.id">
+                  {{ department.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="divider">
+              <span class="divider-text">Or</span>
+            </div>
+
+            <div class="form-group">
+              <label for="regular-service">Regular Service</label>
+              <select
+                id="regular-service"
+                v-model="formData.regular_service_id"
+                class="form-select"
+                :disabled="!!formData.regular_department_id"
+              >
+                <option value="">No service assignment</option>
+                <option v-for="service in services" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+            </div>
           </div>
 
+          <!-- Custom Hours Section -->
           <div class="form-group">
-            <label for="regular-service">Regular Service</label>
-            <select
-              id="regular-service"
-              v-model="formData.regular_service_id"
-              class="form-select"
-            >
-              <option value="">No service assignment</option>
-              <option v-for="service in services" :key="service.id" :value="service.id">
-                {{ service.name }}
-              </option>
-            </select>
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="formData.has_custom_hours"
+                class="form-checkbox"
+              />
+              <span class="checkbox-text">Custom Hours</span>
+            </label>
+            <p class="field-help">Check this if the porter has non-standard working hours</p>
+          </div>
+
+          <!-- Custom Hours Section (only show when Custom Hours checkbox is checked) -->
+          <div v-if="formData.has_custom_hours" class="custom-hours-section">
+            <div class="section-header">
+              <h3 class="section-title">Custom Working Hours</h3>
+              <button
+                type="button"
+                @click="addCustomHour"
+                class="btn btn-sm btn-secondary"
+              >
+                Add Hours
+              </button>
+            </div>
+
+            <div v-if="formData.custom_hours.length === 0" class="empty-hours">
+              <p>No custom hours set. Click "Add Hours" to get started.</p>
+            </div>
+
+            <div v-else class="hours-list">
+              <div
+                v-for="(hour, index) in formData.custom_hours"
+                :key="index"
+                class="hour-item"
+              >
+                <div class="hour-fields">
+                  <div class="field-group">
+                    <label class="field-label">Day</label>
+                    <select v-model.number="hour.day_of_week" class="form-select">
+                      <option
+                        v-for="(dayName, dayIndex) in DAY_NAMES"
+                        :key="dayIndex"
+                        :value="dayIndex"
+                      >
+                        {{ dayName }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label class="field-label">Starts</label>
+                    <input
+                      v-model="hour.starts_at"
+                      type="time"
+                      class="form-input"
+                      required
+                    />
+                  </div>
+
+                  <div class="field-group">
+                    <label class="field-label">Ends</label>
+                    <input
+                      v-model="hour.ends_at"
+                      type="time"
+                      class="form-input"
+                      required
+                    />
+                  </div>
+
+                  <div class="field-group">
+                    <button
+                      type="button"
+                      @click="removeCustomHour(index)"
+                      class="btn btn-sm btn-danger"
+                      title="Remove this time period"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <h3 class="section-title">Temporary Assignment</h3>
@@ -750,5 +765,35 @@ onMounted(() => {
 .btn-danger:hover {
   background-color: var(--color-red-700);
   border-color: var(--color-red-700);
+}
+
+/* Form Row with Divider Styles */
+.form-row-with-divider {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.form-row-with-divider .form-group {
+  flex: 1;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  margin-bottom: 0;
+}
+
+.divider-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background-color: var(--color-neutral-100);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-neutral-200);
 }
 </style>
