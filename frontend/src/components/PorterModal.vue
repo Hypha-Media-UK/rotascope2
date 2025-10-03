@@ -2,12 +2,14 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal">
       <div class="modal-header">
-        <h2 class="modal-title">{{ isEditing ? 'Edit Porter' : 'Create Porter' }}</h2>
+        <h2 class="modal-title">
+          {{ props.quickAssignmentMode ? `Reassign ${props.porter?.name || 'Porter'}` : (isEditing ? 'Edit Porter' : 'Create Porter') }}
+        </h2>
         <button @click="$emit('close')" class="btn btn-sm btn-secondary">✕</button>
       </div>
 
       <!-- Tab Navigation -->
-      <div class="tab-nav">
+      <div v-if="!props.quickAssignmentMode" class="tab-nav">
         <button
           type="button"
           @click="activeTab = 'assignments'"
@@ -24,13 +26,19 @@
         </button>
       </div>
 
+      <!-- Quick Assignment Mode Header -->
+      <div v-if="props.quickAssignmentMode" class="quick-assignment-header">
+        <h3>Temporary Assignment</h3>
+        <p class="quick-assignment-subtitle">Make temporary changes without affecting permanent settings</p>
+      </div>
+
       <form @submit.prevent="handleSubmit" class="modal-body">
         <div v-if="error" class="alert alert-error">
           {{ error }}
         </div>
 
         <!-- Basic Info Tab -->
-        <div v-if="activeTab === 'basic'" class="tab-content">
+        <div v-if="activeTab === 'basic' && !props.quickAssignmentMode" class="tab-content">
 
         <div class="form-group">
           <label for="name">Name *</label>
@@ -105,10 +113,10 @@
         </div>
 
         <!-- Assignments Tab -->
-        <div v-if="activeTab === 'assignments'" class="tab-content">
-          <h3 class="section-title">Shift Assignment</h3>
+        <div v-if="activeTab === 'assignments' || props.quickAssignmentMode" class="tab-content">
+          <h3 v-if="!props.quickAssignmentMode" class="section-title">Shift Assignment</h3>
 
-          <div class="form-row">
+          <div v-if="!props.quickAssignmentMode" class="form-row">
             <div class="form-group">
               <label for="shift">Assigned Shift</label>
               <select
@@ -138,7 +146,7 @@
             </div>
           </div>
 
-          <div class="form-row-with-divider">
+          <div v-if="!props.quickAssignmentMode" class="form-row-with-divider">
             <div class="form-group">
               <label for="regular-department">Regular Department</label>
               <select
@@ -175,7 +183,7 @@
           </div>
 
           <!-- Custom Hours Section -->
-          <div class="form-group">
+          <div v-if="!props.quickAssignmentMode" class="form-group">
             <label class="checkbox-label">
               <input
                 type="checkbox"
@@ -188,7 +196,7 @@
           </div>
 
           <!-- Custom Hours Section (only show when Custom Hours checkbox is checked) -->
-          <div v-if="formData.has_custom_hours" class="custom-hours-section">
+          <div v-if="formData.has_custom_hours && !props.quickAssignmentMode" class="custom-hours-section">
             <div class="section-header">
               <h3 class="section-title">Custom Working Hours</h3>
               <button
@@ -341,6 +349,7 @@ import { shiftApi, departmentApi, serviceApi } from '@/services/api'
 
 interface Props {
   porter?: Porter | null
+  quickAssignmentMode?: boolean
 }
 
 interface Emits {
@@ -795,5 +804,27 @@ onMounted(() => {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-neutral-200);
+}
+
+/* Quick Assignment Mode Styles */
+.quick-assignment-header {
+  padding: var(--space-4);
+  background-color: var(--color-blue-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-blue-200);
+  margin-bottom: var(--space-6);
+}
+
+.quick-assignment-header h3 {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-blue-900);
+}
+
+.quick-assignment-subtitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-blue-700);
 }
 </style>

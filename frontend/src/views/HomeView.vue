@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { departmentApi, serviceApi } from '@/services/api'
-import type { Department, Service, WeekTab, ScheduleDay, ActiveShift, DailyPorterAvailability, PorterAvailability } from '@/types'
+import { departmentApi, serviceApi, porterApi } from '@/services/api'
+import type { Department, Service, WeekTab, ScheduleDay, ActiveShift, DailyPorterAvailability, PorterAvailability, Porter, PorterFormData } from '@/types'
 import WeekNavigation from '@/components/WeekNavigation.vue'
 import ShiftCard from '@/components/ShiftCard.vue'
+import PorterModal from '@/components/PorterModal.vue'
 
 // State
 const scheduleData = ref<ScheduleDay | null>(null)
@@ -12,6 +13,10 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedWeek = ref<WeekTab | null>(null)
 const selectedDate = ref(new Date())
+
+// Porter modal state
+const showPorterModal = ref(false)
+const editingPorter = ref<Porter | null>(null)
 
 // Computed properties
 const currentDateString = computed(() => {
@@ -166,6 +171,38 @@ function onTodaySelected(week: WeekTab) {
   loadScheduleData(today)
 }
 
+// Porter modal methods
+async function openPorterModal(porterId: number) {
+  try {
+    // Fetch the full porter details
+    const porter = await porterApi.getById(porterId)
+    editingPorter.value = porter
+    showPorterModal.value = true
+  } catch (err) {
+    console.error('Error loading porter details:', err)
+    error.value = 'Failed to load porter details'
+  }
+}
+
+function closePorterModal() {
+  showPorterModal.value = false
+  editingPorter.value = null
+}
+
+async function handlePorterSave(formData: PorterFormData) {
+  try {
+    if (editingPorter.value) {
+      await porterApi.update(editingPorter.value.id, formData)
+      // Reload the schedule data to reflect changes
+      await loadScheduleData(selectedDate.value)
+      closePorterModal()
+    }
+  } catch (err) {
+    console.error('Error saving porter:', err)
+    throw err // Let the modal handle the error display
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   // Load today's data by default instead of waiting for WeekNavigation
@@ -236,6 +273,7 @@ onMounted(() => {
             :key="`shift-${shift.shift.id}`"
             :shift="shift"
             class="shift-card-item"
+            @porter-click="openPorterModal"
           />
 
           <!-- Department Cards -->
@@ -273,7 +311,9 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByDepartment[department.id] || []"
                     :key="`porter-${availability.porter.id}`"
-                    class="porter-item"
+                    class="porter-item porter-item--clickable"
+                    @click="openPorterModal(availability.porter.id)"
+                    :title="'Click to reassign ' + availability.porter.name"
                   >
                     <span class="porter-name">{{ availability.porter.name }}</span>
                     <span
@@ -342,7 +382,9 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByService[service.id] || []"
                     :key="`service-${availability.porter.id}`"
-                    class="porter-item"
+                    class="porter-item porter-item--clickable"
+                    @click="openPorterModal(availability.porter.id)"
+                    :title="'Click to reassign ' + availability.porter.name"
                   >
                     <span class="porter-name">{{ availability.porter.name }}</span>
                     <span
@@ -383,6 +425,15 @@ onMounted(() => {
         Go to Configuration
       </router-link>
     </div>
+
+    <!-- Porter Modal for Quick Reassignment -->
+    <PorterModal
+      v-if="showPorterModal"
+      :porter="editingPorter"
+      :quick-assignment-mode="true"
+      @save="handlePorterSave"
+      @close="closePorterModal"
+    />
   </div>
 </template>
 
@@ -641,6 +692,23 @@ onMounted(() => {
   background-color: var(--color-neutral-50);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-primary);
+}
+
+.porter-item--clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.porter-item--clickable:hover {
+  background-color: var(--color-neutral-100);
+  border-left-color: var(--color-primary-600);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.porter-item--clickable:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .porter-name {

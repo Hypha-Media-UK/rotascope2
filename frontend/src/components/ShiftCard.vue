@@ -52,11 +52,14 @@
           :key="assignment.porter.id"
           :class="[
             'porter-item',
+            'porter-item--clickable',
             {
               'porter-item--inactive': !assignment.is_active_today,
               'porter-item--temp-assigned': assignment.is_temporarily_assigned
             }
           ]"
+          @click="$emit('porter-click', assignment.porter.id)"
+          :title="'Click to reassign ' + assignment.porter.name"
         >
           <div class="porter-info">
             <span class="porter-name">{{ assignment.porter.name }}</span>
@@ -95,6 +98,9 @@ interface Props {
 }
 
 defineProps<Props>()
+defineEmits<{
+  'porter-click': [porterId: number]
+}>()
 
 function formatShiftTimes(shift: any): string {
   const start = shift.starts_at.slice(0, 5) // Remove seconds
@@ -249,6 +255,22 @@ function formatShiftTimes(shift: any): string {
   border-radius: var(--radius-md);
   border: 1px solid var(--color-neutral-200);
   transition: all 0.2s ease;
+}
+
+.porter-item--clickable {
+  cursor: pointer;
+}
+
+.porter-item--clickable:hover {
+  background-color: var(--color-neutral-100);
+  border-color: var(--color-primary-300);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.porter-item--clickable:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .porter-item--inactive {
