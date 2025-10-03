@@ -225,6 +225,12 @@ export interface PorterAvailability {
   porter: Porter;
   availability_type: 'SHIFT' | 'CUSTOM_HOURS' | 'REGULAR_ASSIGNMENT';
   is_working_today: boolean;
+  is_temporarily_assigned?: boolean;
+  temp_assignment_info?: {
+    temp_location: string;
+    start_time: string;
+    end_time: string;
+  };
   working_hours?: {
     start: string;
     end: string;

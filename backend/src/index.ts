@@ -531,7 +531,8 @@ app.get('/api/availability/:date', async (req, res) => {
     (porters as any[]).forEach((porter: any) => {
       const porterAvailability = calculatePorterAvailability(porter, targetDate, dayOfWeek, customHoursMap);
       if (porterAvailability) {
-        availablePorters.push(porterAvailability);
+        // porterAvailability is now an array of availability records
+        availablePorters.push(...porterAvailability);
       }
     });
 
@@ -549,51 +550,69 @@ app.get('/api/availability/:date', async (req, res) => {
   }
 });
 
-// Helper function to calculate porter availability
-function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: number, customHoursMap: Map<number, any>) {
-  const isInTempAssignmentPeriod = porter.temp_assignment_start && porter.temp_assignment_end &&
-    targetDate >= new Date(porter.temp_assignment_start) && targetDate <= new Date(porter.temp_assignment_end);
-
-  // Priority 1: Temporary Assignment (highest priority)
-  if (isInTempAssignmentPeriod) {
-    if (porter.temp_department_id) {
-      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.temp_department_id, porter.temp_department_name, 'TEMPORARY');
-    } else if (porter.temp_service_id) {
-      return createAvailabilityRecord(porter, 'SERVICE', porter.temp_service_id, porter.temp_service_name, 'TEMPORARY');
-    }
+// Helper function to check if current time is within temporary assignment period
+function isCurrentlyInTempAssignment(porter: any): boolean {
+  if (!porter.temp_assignment_start || !porter.temp_assignment_end) {
+    return false;
   }
 
-  // Priority 2: Shift Assignment with location
-  if (porter.shift_id && isPorterWorkingShiftToday(porter, targetDate, dayOfWeek)) {
-    // Determine location for shift worker
-    if (porter.regular_department_id) {
-      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'SHIFT', porter);
-    } else if (porter.regular_service_id) {
-      return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'SHIFT', porter);
-    }
-  }
+  const now = new Date();
+  const currentTime = now.toTimeString().substring(0, 8); // HH:MM:SS format
 
-  // Priority 3: Custom Hours with regular assignment
-  if (porter.contracted_hours_type === 'CUSTOM' && customHoursMap.has(porter.id)) {
-    const hours = customHoursMap.get(porter.id);
-    if (porter.regular_department_id) {
-      return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'CUSTOM_HOURS', null, hours);
-    } else if (porter.regular_service_id) {
-      return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'CUSTOM_HOURS', null, hours);
-    }
-  }
-
-  // Priority 4: Regular Assignment (always available - for 24/7 departments/services)
-  if (porter.regular_department_id) {
-    return createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'REGULAR_ASSIGNMENT');
-  } else if (porter.regular_service_id) {
-    return createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'REGULAR_ASSIGNMENT');
-  }
-
-  return null; // Porter not available today
+  // Compare current time with assignment time range
+  return currentTime >= porter.temp_assignment_start && currentTime <= porter.temp_assignment_end;
 }
 
-function createAvailabilityRecord(porter: any, locationType: string, locationId: number, locationName: string, assignmentType: string, availabilityType: string = 'REGULAR_ASSIGNMENT', shiftInfo: any = null, customHours: any = null) {
+// Helper function to calculate porter availability
+function calculatePorterAvailability(porter: any, targetDate: Date, dayOfWeek: number, customHoursMap: Map<number, any>) {
+  const isInTempAssignmentPeriod = isCurrentlyInTempAssignment(porter);
+  const availabilityRecords: any[] = [];
+
+  // Priority 1: Temporary Assignment (if currently active)
+  if (isInTempAssignmentPeriod) {
+    if (porter.temp_department_id) {
+      availabilityRecords.push(createAvailabilityRecord(porter, 'DEPARTMENT', porter.temp_department_id, porter.temp_department_name, 'TEMPORARY'));
+    } else if (porter.temp_service_id) {
+      availabilityRecords.push(createAvailabilityRecord(porter, 'SERVICE', porter.temp_service_id, porter.temp_service_name, 'TEMPORARY'));
+    }
+  }
+
+  // Priority 2: Regular Assignment (always show, but mark if temporarily assigned)
+  let regularRecord = null;
+
+  // Shift Assignment with location
+  if (porter.shift_id && isPorterWorkingShiftToday(porter, targetDate, dayOfWeek)) {
+    if (porter.regular_department_id) {
+      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod);
+    } else if (porter.regular_service_id) {
+      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'SHIFT', porter, null, isInTempAssignmentPeriod);
+    }
+  }
+  // Custom Hours with regular assignment
+  else if (porter.contracted_hours_type === 'CUSTOM' && customHoursMap.has(porter.id)) {
+    const hours = customHoursMap.get(porter.id);
+    if (porter.regular_department_id) {
+      regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod);
+    } else if (porter.regular_service_id) {
+      regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'CUSTOM_HOURS', null, hours, isInTempAssignmentPeriod);
+    }
+  }
+  // Regular Assignment (always available - for 24/7 departments/services)
+  else if (porter.regular_department_id) {
+    regularRecord = createAvailabilityRecord(porter, 'DEPARTMENT', porter.regular_department_id, porter.regular_department_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod);
+  } else if (porter.regular_service_id) {
+    regularRecord = createAvailabilityRecord(porter, 'SERVICE', porter.regular_service_id, porter.regular_service_name, 'REGULAR', 'REGULAR_ASSIGNMENT', null, null, isInTempAssignmentPeriod);
+  }
+
+  if (regularRecord) {
+    availabilityRecords.push(regularRecord);
+  }
+
+  // Return all availability records (both temporary and regular)
+  return availabilityRecords.length > 0 ? availabilityRecords : null;
+}
+
+function createAvailabilityRecord(porter: any, locationType: string, locationId: number, locationName: string, assignmentType: string, availabilityType: string = 'REGULAR_ASSIGNMENT', shiftInfo: any = null, customHours: any = null, isTemporarilyAssigned: boolean = false) {
   return {
     porter: {
       id: porter.id,
@@ -614,6 +633,12 @@ function createAvailabilityRecord(porter: any, locationType: string, locationId:
     },
     availability_type: availabilityType,
     is_working_today: true,
+    is_temporarily_assigned: isTemporarilyAssigned,
+    temp_assignment_info: isTemporarilyAssigned ? {
+      temp_location: porter.temp_department_name || porter.temp_service_name,
+      start_time: porter.temp_assignment_start,
+      end_time: porter.temp_assignment_end
+    } : undefined,
     working_hours: customHours || (shiftInfo ? {
       start: shiftInfo.shift_starts_at,
       end: shiftInfo.shift_ends_at
@@ -924,12 +949,10 @@ app.get('/api/schedule/:date', async (req, res) => {
           let isTemporarilyAssigned = false;
           let tempAssignmentLocation = null;
 
-          // Check temporary assignment
+          // Check temporary assignment (time-based)
           if (porter.temp_assignment_start && porter.temp_assignment_end) {
-            const startDate = new Date(porter.temp_assignment_start);
-            const endDate = new Date(porter.temp_assignment_end);
-            if (targetDate >= startDate && targetDate <= endDate) {
-              isTemporarilyAssigned = true;
+            isTemporarilyAssigned = isCurrentlyInTempAssignment(porter);
+            if (isTemporarilyAssigned) {
               tempAssignmentLocation = porter.temp_department_name || porter.temp_service_name;
             }
           }
