@@ -183,8 +183,8 @@ CREATE TABLE porters (
     email VARCHAR(255) NULL,
     phone VARCHAR(20) NULL,
     porter_type ENUM('PORTER', 'SUPERVISOR', 'SENIOR_PORTER') NOT NULL DEFAULT 'PORTER',
-    contracted_hours_type ENUM('SHIFT', 'RELIEF', 'CUSTOM', 'PART_TIME') NOT NULL,
     weekly_contracted_hours DECIMAL(4,2) NOT NULL DEFAULT 37.50,
+    has_custom_hours BOOLEAN NOT NULL DEFAULT FALSE,
     shift_id INT UNSIGNED NULL, -- For shift-based porters
     regular_department_id INT UNSIGNED NULL, -- Primary department assignment
     is_floor_staff BOOLEAN NOT NULL DEFAULT FALSE,
@@ -206,7 +206,7 @@ CREATE TABLE porters (
     UNIQUE KEY uk_porter_email (email),
     INDEX idx_porter_name (name),
     INDEX idx_porter_type (porter_type),
-    INDEX idx_porter_contract_type (contracted_hours_type),
+    INDEX idx_porter_custom_hours (has_custom_hours),
     INDEX idx_porter_active (is_active),
     INDEX idx_porter_shift (shift_id),
     INDEX idx_porter_department (regular_department_id)

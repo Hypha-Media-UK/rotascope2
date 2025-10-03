@@ -193,8 +193,8 @@ app.get('/api/porters', async (req, res) => {
 });
 app.post('/api/porters', async (req, res) => {
     try {
-        const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, shift_id, porter_offset, regular_department_id, regular_service_id, temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end, is_active } = req.body;
-        if (!name || !porter_type || !contracted_hours_type) {
+        const { name, email, porter_type, weekly_contracted_hours, has_custom_hours, shift_id, porter_offset, regular_department_id, regular_service_id, temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end, is_active } = req.body;
+        if (!name || !porter_type) {
             return res.status(400).json({ error: 'Missing required porter data' });
         }
         const formatDateForDB = (dateString) => {
@@ -204,12 +204,12 @@ app.post('/api/porters', async (req, res) => {
         };
         const connection = await promise_1.default.createConnection(dbConfig);
         const [result] = await connection.execute(`INSERT INTO porters (
-        name, email, porter_type, contracted_hours_type, weekly_contracted_hours,
+        name, email, porter_type, weekly_contracted_hours, has_custom_hours,
         shift_id, porter_offset, regular_department_id, regular_service_id,
         temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end,
         is_active
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
+            name, email || null, porter_type, weekly_contracted_hours || 37.50, has_custom_hours ? 1 : 0,
             shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
             temp_department_id || null, temp_service_id || null,
             formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),
@@ -226,8 +226,8 @@ app.post('/api/porters', async (req, res) => {
 app.put('/api/porters/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email, porter_type, contracted_hours_type, weekly_contracted_hours, shift_id, porter_offset, regular_department_id, regular_service_id, temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end, is_active } = req.body;
-        if (!name || !porter_type || !contracted_hours_type) {
+        const { name, email, porter_type, weekly_contracted_hours, has_custom_hours, shift_id, porter_offset, regular_department_id, regular_service_id, temp_department_id, temp_service_id, temp_assignment_start, temp_assignment_end, is_active } = req.body;
+        if (!name || !porter_type) {
             return res.status(400).json({ error: 'Missing required porter data' });
         }
         const formatDateForDB = (dateString) => {
@@ -237,12 +237,12 @@ app.put('/api/porters/:id', async (req, res) => {
         };
         const connection = await promise_1.default.createConnection(dbConfig);
         await connection.execute(`UPDATE porters SET
-        name = ?, email = ?, porter_type = ?, contracted_hours_type = ?, weekly_contracted_hours = ?,
+        name = ?, email = ?, porter_type = ?, weekly_contracted_hours = ?, has_custom_hours = ?,
         shift_id = ?, porter_offset = ?, regular_department_id = ?, regular_service_id = ?,
         temp_department_id = ?, temp_service_id = ?, temp_assignment_start = ?, temp_assignment_end = ?,
         is_active = ?, updated_at = NOW()
       WHERE id = ?`, [
-            name, email || null, porter_type, contracted_hours_type, weekly_contracted_hours || 37.50,
+            name, email || null, porter_type, weekly_contracted_hours || 37.50, has_custom_hours ? 1 : 0,
             shift_id || null, porter_offset || 0, regular_department_id || null, regular_service_id || null,
             temp_department_id || null, temp_service_id || null,
             formatDateForDB(temp_assignment_start), formatDateForDB(temp_assignment_end),

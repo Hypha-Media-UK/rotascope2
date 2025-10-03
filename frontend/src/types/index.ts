@@ -89,9 +89,9 @@ export interface Porter {
   name: string;
   email?: string;
   phone?: string;
-  porter_type: 'REGULAR' | 'RELIEF';
-  contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
+  porter_type: 'PORTER' | 'SUPERVISOR' | 'SENIOR_PORTER';
   weekly_contracted_hours: number;
+  has_custom_hours: boolean;
   shift_id?: number;
   porter_offset?: number;
   regular_department_id?: number;
@@ -199,9 +199,9 @@ export interface ServiceFormData {
 export interface PorterFormData {
   name: string;
   email?: string;
-  porter_type: 'REGULAR' | 'RELIEF';
-  contracted_hours_type: 'SHIFT' | 'RELIEF' | 'CUSTOM' | 'PART_TIME';
+  porter_type: 'PORTER' | 'SUPERVISOR' | 'SENIOR_PORTER';
   weekly_contracted_hours?: number;
+  has_custom_hours: boolean;
   shift_id?: number;
   porter_offset?: number;
   regular_department_id?: number;

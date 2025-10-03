@@ -65,25 +65,22 @@
               class="form-input"
             >
               <option value="">Select type</option>
-              <option value="REGULAR">Regular</option>
-              <option value="RELIEF">Relief</option>
+              <option value="PORTER">Porter</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="SENIOR_PORTER">Senior Porter</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="contract-type">Contract Type *</label>
-            <select
-              id="contract-type"
-              v-model="formData.contracted_hours_type"
-              required
-              class="form-input"
-            >
-              <option value="">Select contract</option>
-              <option value="SHIFT">Shift Worker</option>
-              <option value="RELIEF">Relief Worker</option>
-              <option value="CUSTOM">Custom Hours</option>
-              <option value="PART_TIME">Part Time</option>
-            </select>
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="formData.has_custom_hours"
+                class="form-checkbox"
+              />
+              <span class="checkbox-text">Custom Hours</span>
+            </label>
+            <p class="field-help">Check this if the porter has non-standard working hours</p>
           </div>
         </div>
 
@@ -101,8 +98,8 @@
           />
         </div>
 
-        <!-- Custom Hours Section (only show when Custom Hours is selected) -->
-        <div v-if="formData.contracted_hours_type === 'CUSTOM'" class="custom-hours-section">
+        <!-- Custom Hours Section (only show when Custom Hours checkbox is checked) -->
+        <div v-if="formData.has_custom_hours" class="custom-hours-section">
           <div class="section-header">
             <h3 class="section-title">Custom Working Hours</h3>
             <button
@@ -354,9 +351,9 @@ const error = ref<string | null>(null)
 const formData = ref<PorterFormData>({
   name: '',
   email: '',
-  porter_type: 'REGULAR',
-  contracted_hours_type: 'SHIFT',
+  porter_type: 'PORTER',
   weekly_contracted_hours: 37.5,
+  has_custom_hours: false,
   shift_id: undefined,
   porter_offset: 0,
   regular_department_id: undefined,
@@ -390,8 +387,8 @@ function initializeForm() {
       name: props.porter.name,
       email: props.porter.email || '',
       porter_type: props.porter.porter_type,
-      contracted_hours_type: props.porter.contracted_hours_type,
       weekly_contracted_hours: props.porter.weekly_contracted_hours,
+      has_custom_hours: Boolean(props.porter.has_custom_hours),
       shift_id: props.porter.shift_id,
       porter_offset: props.porter.porter_offset || 0,
       regular_department_id: props.porter.regular_department_id,
@@ -404,17 +401,17 @@ function initializeForm() {
       custom_hours: [] // Will be loaded from API if porter has custom hours
     }
 
-    // Load custom hours if porter has custom contract type
-    if (props.porter.contracted_hours_type === 'CUSTOM') {
+    // Load custom hours if porter has custom hours enabled
+    if (props.porter.has_custom_hours) {
       loadCustomHours(props.porter.id)
     }
   } else {
     formData.value = {
       name: '',
       email: '',
-      porter_type: 'REGULAR',
-      contracted_hours_type: 'SHIFT',
+      porter_type: 'PORTER',
       weekly_contracted_hours: 37.5,
+      has_custom_hours: false,
       shift_id: undefined,
       porter_offset: 0,
       regular_department_id: undefined,
@@ -628,6 +625,31 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  margin-top: var(--space-2);
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.field-help {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0 0 0;
 }
 
 .form-help {
