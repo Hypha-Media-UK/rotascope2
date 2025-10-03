@@ -311,54 +311,40 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByDepartment[department.id] || []"
                     :key="`porter-${availability.porter.id}-${availability.assignment_location.assignment_type}`"
-                    :class="[
-                      'porter-item',
-                      'porter-item--clickable',
-                      {
-                        'porter-item--temporary': availability.assignment_location.assignment_type === 'TEMPORARY',
-                        'porter-item--temp-assigned': availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR'
-                      }
-                    ]"
+                    class="porter-item porter-item--clickable"
                     @click="openPorterModal(availability.porter.id)"
                     :title="'Click to reassign ' + availability.porter.name"
                   >
-                    <span class="porter-name">{{ availability.porter.name }}</span>
-                    <span
-                      :class="['assignment-type', availability.assignment_location.assignment_type.toLowerCase()]"
-                    >
-                      {{ availability.assignment_location.assignment_type }}
-                    </span>
+                    <div class="porter-info">
+                      <span class="porter-name">{{ availability.porter.name }}</span>
 
-                    <!-- Temporary assignment time indicator -->
-                    <span
-                      v-if="availability.assignment_location.assignment_type === 'TEMPORARY' && availability.temp_assignment_info"
-                      class="temp-time-indicator"
-                      :title="`Temporary assignment: ${availability.temp_assignment_info.start_time.substring(0,5)} - ${availability.temp_assignment_info.end_time.substring(0,5)}`"
-                    >
-                      ({{ availability.temp_assignment_info.start_time.substring(0,5) }}-{{ availability.temp_assignment_info.end_time.substring(0,5) }})
-                    </span>
+                      <!-- Temporary assignment time indicator -->
+                      <span
+                        v-if="availability.assignment_location.assignment_type === 'TEMPORARY' && availability.temp_assignment_info"
+                        class="porter-detail"
+                        :title="`Temporary assignment: ${availability.temp_assignment_info.start_time.substring(0,5)} - ${availability.temp_assignment_info.end_time.substring(0,5)}`"
+                      >
+                        Temporary ({{ availability.temp_assignment_info.start_time.substring(0,5) }}-{{ availability.temp_assignment_info.end_time.substring(0,5) }})
+                      </span>
 
-                    <!-- Currently reassigned indicator -->
-                    <span
-                      v-if="availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR' && availability.temp_assignment_info"
-                      class="reassigned-indicator"
-                      :title="`Currently reassigned to ${availability.temp_assignment_info.temp_location} until ${availability.temp_assignment_info.end_time.substring(0,5)}`"
-                    >
-                      → {{ availability.temp_assignment_info.temp_location }} ({{ availability.temp_assignment_info.end_time.substring(0,5) }})
-                    </span>
+                      <!-- Currently reassigned indicator -->
+                      <span
+                        v-if="availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR' && availability.temp_assignment_info"
+                        class="porter-detail"
+                        :title="`Currently reassigned to ${availability.temp_assignment_info.temp_location} until ${availability.temp_assignment_info.end_time.substring(0,5)}`"
+                      >
+                        → {{ availability.temp_assignment_info.temp_location }} (until {{ availability.temp_assignment_info.end_time.substring(0,5) }})
+                      </span>
+                    </div>
 
-                    <span
-                      v-if="availability.availability_type !== 'SHIFT'"
-                      class="availability-type"
-                    >
-                      ({{ availability.availability_type.replace('_', ' ') }})
-                    </span>
-                    <span
-                      v-if="availability.working_hours"
-                      class="working-hours"
-                    >
-                      {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
-                    </span>
+                    <div class="porter-meta">
+                      <span
+                        v-if="availability.working_hours"
+                        class="working-hours"
+                      >
+                        {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
+                      </span>
+                    </div>
                   </div>
 
                   <div v-if="!portersByDepartment[department.id] || portersByDepartment[department.id].length === 0" class="no-porters">
@@ -408,54 +394,40 @@ onMounted(() => {
                   <div
                     v-for="availability in portersByService[service.id] || []"
                     :key="`service-${availability.porter.id}-${availability.assignment_location.assignment_type}`"
-                    :class="[
-                      'porter-item',
-                      'porter-item--clickable',
-                      {
-                        'porter-item--temporary': availability.assignment_location.assignment_type === 'TEMPORARY',
-                        'porter-item--temp-assigned': availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR'
-                      }
-                    ]"
+                    class="porter-item porter-item--clickable"
                     @click="openPorterModal(availability.porter.id)"
                     :title="'Click to reassign ' + availability.porter.name"
                   >
-                    <span class="porter-name">{{ availability.porter.name }}</span>
-                    <span
-                      :class="['assignment-type', availability.assignment_location.assignment_type.toLowerCase()]"
-                    >
-                      {{ availability.assignment_location.assignment_type }}
-                    </span>
+                    <div class="porter-info">
+                      <span class="porter-name">{{ availability.porter.name }}</span>
 
-                    <!-- Temporary assignment time indicator -->
-                    <span
-                      v-if="availability.assignment_location.assignment_type === 'TEMPORARY' && availability.temp_assignment_info"
-                      class="temp-time-indicator"
-                      :title="`Temporary assignment: ${availability.temp_assignment_info.start_time.substring(0,5)} - ${availability.temp_assignment_info.end_time.substring(0,5)}`"
-                    >
-                      ({{ availability.temp_assignment_info.start_time.substring(0,5) }}-{{ availability.temp_assignment_info.end_time.substring(0,5) }})
-                    </span>
+                      <!-- Temporary assignment time indicator -->
+                      <span
+                        v-if="availability.assignment_location.assignment_type === 'TEMPORARY' && availability.temp_assignment_info"
+                        class="porter-detail"
+                        :title="`Temporary assignment: ${availability.temp_assignment_info.start_time.substring(0,5)} - ${availability.temp_assignment_info.end_time.substring(0,5)}`"
+                      >
+                        Temporary ({{ availability.temp_assignment_info.start_time.substring(0,5) }}-{{ availability.temp_assignment_info.end_time.substring(0,5) }})
+                      </span>
 
-                    <!-- Currently reassigned indicator -->
-                    <span
-                      v-if="availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR' && availability.temp_assignment_info"
-                      class="reassigned-indicator"
-                      :title="`Currently reassigned to ${availability.temp_assignment_info.temp_location} until ${availability.temp_assignment_info.end_time.substring(0,5)}`"
-                    >
-                      → {{ availability.temp_assignment_info.temp_location }} ({{ availability.temp_assignment_info.end_time.substring(0,5) }})
-                    </span>
+                      <!-- Currently reassigned indicator -->
+                      <span
+                        v-if="availability.is_temporarily_assigned && availability.assignment_location.assignment_type === 'REGULAR' && availability.temp_assignment_info"
+                        class="porter-detail"
+                        :title="`Currently reassigned to ${availability.temp_assignment_info.temp_location} until ${availability.temp_assignment_info.end_time.substring(0,5)}`"
+                      >
+                        → {{ availability.temp_assignment_info.temp_location }} (until {{ availability.temp_assignment_info.end_time.substring(0,5) }})
+                      </span>
+                    </div>
 
-                    <span
-                      v-if="availability.availability_type !== 'SHIFT'"
-                      class="availability-type"
-                    >
-                      ({{ availability.availability_type.replace('_', ' ') }})
-                    </span>
-                    <span
-                      v-if="availability.working_hours"
-                      class="working-hours"
-                    >
-                      {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
-                    </span>
+                    <div class="porter-meta">
+                      <span
+                        v-if="availability.working_hours"
+                        class="working-hours"
+                      >
+                        {{ availability.working_hours.start.substring(0,5) }}-{{ availability.working_hours.end.substring(0,5) }}
+                      </span>
+                    </div>
                   </div>
 
                   <div v-if="!portersByService[service.id] || portersByService[service.id].length === 0" class="no-porters">
@@ -743,7 +715,7 @@ onMounted(() => {
   padding: var(--space-3);
   background-color: var(--color-neutral-50);
   border-radius: var(--radius-sm);
-  border-left: 3px solid var(--color-primary);
+  border: 1px solid var(--color-neutral-200);
 }
 
 .porter-item--clickable {
@@ -753,53 +725,27 @@ onMounted(() => {
 
 .porter-item--clickable:hover {
   background-color: var(--color-neutral-100);
-  border-left-color: var(--color-primary-600);
+  border-color: var(--color-primary-300);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Temporary assignment styling */
-.porter-item--temporary {
-  background-color: var(--color-warning-50);
-  border-left-color: var(--color-warning-500);
+.porter-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.porter-item--temporary:hover {
-  background-color: var(--color-warning-100);
-  border-left-color: var(--color-warning-600);
+.porter-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-/* Currently reassigned styling */
-.porter-item--temp-assigned {
-  background-color: var(--color-info-50);
-  border-left-color: var(--color-info-500);
-  opacity: 0.8;
-}
-
-.porter-item--temp-assigned:hover {
-  background-color: var(--color-info-100);
-  border-left-color: var(--color-info-600);
-}
-
-/* Temporary assignment indicators */
-.temp-time-indicator {
+.porter-detail {
   font-size: var(--font-size-xs);
-  color: var(--color-warning-700);
-  font-weight: 600;
-  background-color: var(--color-warning-100);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 4px;
-}
-
-.reassigned-indicator {
-  font-size: var(--font-size-xs);
-  color: var(--color-info-700);
-  font-weight: 500;
-  background-color: var(--color-info-100);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 4px;
+  color: var(--color-neutral-600);
+  font-style: italic;
 }
 
 .porter-item--clickable:active {
@@ -810,24 +756,6 @@ onMounted(() => {
 .porter-name {
   font-weight: 500;
   color: var(--color-neutral-900);
-}
-
-.assignment-type {
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  font-weight: 500;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-}
-
-.assignment-type.regular {
-  color: var(--color-blue-700);
-  background-color: var(--color-blue-100);
-}
-
-.assignment-type.temporary {
-  color: var(--color-orange-700);
-  background-color: var(--color-orange-100);
 }
 
 .no-porters {
@@ -891,20 +819,9 @@ onMounted(() => {
   }
 }
 
-.availability-type {
-  font-size: var(--font-size-xs);
-  color: var(--color-neutral-600);
-  font-style: italic;
-  margin-left: var(--space-2);
-}
-
 .working-hours {
   font-size: var(--font-size-xs);
-  color: var(--color-neutral-700);
-  background-color: var(--color-neutral-100);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  margin-left: var(--space-2);
-  font-family: monospace;
+  color: var(--color-neutral-600);
+  font-family: var(--font-mono, 'Courier New', monospace);
 }
 </style>
